@@ -140,18 +140,61 @@ class SFTP_Target(Target):
         self.path_string = os.path.join(host, remote_path)
         self.remote_path = remote_path
         self.asset_type = asset_type
+        if user is None:
+            import getpass
+            user = getpass.getuser()
         self.username = user
 
     @contextmanager
     def filesystem(self):
-        import pysftp
-        kwargs = {'username': self.username,
-                  'host': self.host}
-        sftp_connection = pysftp.Connection(**kwargs)
-        yield sftp_connection
-        sftp_connection.close()
+        logging.info("COnnecting to %s as %s", self.host, self.username)
+        #import pysftp
+        #kwargs = {'username': self.username,
+        #          'host': self.host}
+        #sftp_connection = pysftp.Connection(**kwargs)
+        #yield sftp_connection
+        #sftp_connection.close()
 
+        import paramiko
+        ssh_dir = os.path.join(os.path.expanduser("~"), '.ssh')
+        for keyfile in os.listdir(ssh_dir):
+            if not keyfile.startswith("id_"):
+                continue
+            if keyfile.endswith(".pub"):
+                continue
+            ## TODO: check for first line with:
+            # ---BEGIN XXX PRIVATE KEY---
 
+            logging.debug("Trying key: %s", keyfile)
+            keyfile = os.path.join(ssh_dir, keyfile)
+
+            # figure out what type of key by brute force
+            for keygen in [paramiko.DSSKey, paramiko.ECDSAKey, 
+                          paramiko.Ed25519Key, paramiko.RSAKey]:
+                try:
+                    logging.debug("Trying: " + repr(keygen))
+                    pk = keygen.from_private_key_file(keyfile)
+                    transport = paramiko.Transport(self.host)
+                    transport.connect(username=self.username, pkey=pk)
+                except paramiko.SSHException as e:
+                    continue
+                else:
+                    logging.debug("Connected!")
+                    sftp = paramiko.SFTPClient.from_transport(transport)
+                    yield sftp
+                    sftp.close()
+                    transport.close()
+                    break
+            else:
+                # found nothing, go to next key
+                continue
+            # found something, exit
+            break
+        else:
+            # found nothing
+            raise Exception("Could not connect! Rerun with -d to get more info")
+
+                    
     def get_remote_pref(self):
         """ prefix for rsync remote path """
         return self.username + "@" + self.host + ":"
