@@ -3,7 +3,7 @@ from jme.stagecache.target import get_target
 from jme.stagecache.types import asset_types
 from jme.stagecache.cache import Cache
 
-def cache_target(target_url, cache_dir=None, atype=None, time=None):
+def cache_target(target_url, cache=None, atype=None, time=None):
     """
     if file not cached, copy to cache.
 
@@ -12,13 +12,13 @@ def cache_target(target_url, cache_dir=None, atype=None, time=None):
     
     ## TODO: get new asset types from config
     # check config files for missing info
-    cache_dir, atype, time = fall_back_to_defaults(cache_dir, atype, time)
+    cache, atype, time = fall_back_to_defaults(cache, atype, time)
 
     # traslate time string into seconds
     cache_time = parse_slurm_time(time)
 
-    # initialize the Cache
-    cache = Cache(metadata.cache_dir)
+    # initialize the Cache (turn directory name into object)
+    cache = Cache(cache)
 
     # initialize the Target
     target = get_target(target_url, asset_types[atype])
@@ -32,7 +32,7 @@ def fall_back_to_defaults(cache, atype, time):
     set to None
     """
     ## TODO: look in config for defaults for any of the above that are None
-    pass
+    return cache, atype, time
 
 TIME_REXP = re.compile(r'(?:(\d+)-)?(\d?\d):(\d?\d)(?::(\d\d))?')
 def parse_slurm_time(time):

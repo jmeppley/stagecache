@@ -1,7 +1,12 @@
+import logging
 import time
 import os
+import shutil
 from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
 from jme.stagecache.config import load_cache_config
+
+class InsufficientSpaceError(Exception):
+    pass
 
 class Cache():
     def __init__(self, cache_root):
@@ -23,7 +28,10 @@ class Cache():
         """
 
         # get the location in cache to create
-        target_metadata = TargetMetadata(self.cache_root, target.path_string)
+        target_metadata = TargetMetadata(self,
+                                         target.path_string,
+                                         target.asset_type['name'],
+                                        )
 
         # acquire lock 
         target_metadata.get_write_lock()
@@ -36,11 +44,12 @@ class Cache():
             # cached mtime
             cache_size, cache_time = \
                 target_metadata.get_cached_target_size()
-        except FileNotFoundException:
+        except FileNotFoundError:
             cache_time = 0
 
         if cache_time < target_mtime:
             # cache is out of date
+            self.metadata.get_write_lock()
             try:
                 # get updated target size
                 target_size = target.get_size()
@@ -59,12 +68,25 @@ class Cache():
                                               lock_end_date)
 
 
-            except InsufficientSpaceException as ise:
-                metadata.release_write_lock()
+            except InsufficientSpaceError as ise:
+                target_metadata.release_write_lock()
+                self.metadata.release_write_lock()
                 raise ise
 
 
-        return metadata.cached_target
+            self.metadata.release_write_lock()
+
+        else:
+            # file already in cache
+            logging.info("File is already in cache, updating lock")
+
+            # extend lock if new lock is longer
+            lock_end_date = int(time.time()) + cache_time
+            if target_metadata.get_last_lock_date() < lock_end_date:
+                target_metadata.set_cache_lock_date(lock_end_date)
+
+        target_metadata.release_write_lock()
+        return target_metadata.cached_target
 
 
     def free_up_cache_space(self, size):
@@ -73,13 +95,22 @@ class Cache():
         """
 
         # how much space is there
-        free_space = check_cache_space(cache)
+        free_space = self.check_cache_space()
 
         # is it enough
         if size > free_space:
             # no
 
+            # get list of stale files
             unlocked_assets = self.metadata.iter_cached_files(locked=False)
+
+            # can we free up enough space?
+            total_unlocked_size = sum(a.get_cached_target_size() \
+                                      for a in unlocked_assets)
+            if total_unlocked_size + free_space < size:
+                raise InsufficientSpaceError("Cannot cache file. "
+                                             "There is not enough space.")
+            
             # start deleting stale files ...
             for asset in sorted(unlocked_assets,
                                 key=lambda a: a.get_last_lock_date(),
@@ -118,5 +149,4 @@ class Cache():
             return self.config['cache_size'] - used_cached_size
         else:
             return shutil.disk_usage(self.cache_root).free
-
 

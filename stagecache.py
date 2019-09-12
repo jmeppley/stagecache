@@ -32,9 +32,9 @@ Options:
     -V --version             Show version.
     -v --verbose             Print more messages.
     -d --debug               Print even more messages.
-    -a ATYPE, --atype ATYPE  Asset type (default to single file)
+    -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
-    -t TIME, --time TIME     Keep in cache for (default: 1-0:00 (1 day))
+    -t TIME, --time TIME     Keep in cache for [default: 1-0:00]
 """
 
 import logging
@@ -71,21 +71,23 @@ def main(arguments):
               if "--"+k in arguments}
 
     # logging
-    if '--debug' in arguments:
+    if arguments['--debug']:
         log_level = logging.DEBUG
         ll_text = 'debug'
-    elif '--verbose' in arguments:
+    elif arguments['--verbose']:
         log_level = logging.INFO
         ll_text = 'verbose'
-    logging.basicConfig(level=loglevel)
-    logging.info("Log level set to %r(%d)" % (loglevel, ll_text))
+    else:
+        log_level = logging.WARNING
+        ll_text = 'quiet'
+    logging.basicConfig(level=log_level)
+    logging.info("Log level set to %s (%s)" % (log_level, ll_text))
 
     print(cache_target(target_path, **kwargs))
 
 
 if __name__ == '__main__':
     import sys
-    print(sys.argv)
     arguments = docopt(__doc__, version=VERSION)
     main(arguments)
 

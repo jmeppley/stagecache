@@ -1,9 +1,9 @@
 import os
-import logging
 import subprocess
 from jme.stagecache import text_metadata
 from jme.stagecache.cache import Cache
 
+import logging
 logging.basicConfig(log_level=logging.DEBUG)
 
 def test_get_cache_dir():

@@ -47,8 +47,10 @@ def get_cached_target(cache_root, target_path):
 class Lockable():
     def get_write_lock(self, sleep_interval=3):
         """ mark file as in progress (wait for existing lock) """
-        while os.path.exists(self.write_lock):
-            time.sleep(sleep_interval)
+        if os.path.exists(self.write_lock):
+            logging.info('Waiting for lock...')
+            while os.path.exists(self.write_lock):
+                time.sleep(sleep_interval)
 
         with open(self.write_lock, 'wt') as LOCK:
             LOCK.write('locked')
@@ -96,7 +98,7 @@ class TargetMetadata(Lockable):
         if os.path.exists(md_file):
             self.catalog(md_type)
         with open(md_file, 'wt') as SIZE:
-            SIZE.write(str(value))
+            SIZE.write(str(int(value)))
 
     def catalog(self, md_type):
         """ archives old md and returns value """
@@ -144,8 +146,16 @@ class CacheMetadata(Lockable):
         self.md_dir = os.path.abspath(
             os.path.join(self.cache.cache_root, '.stagecache.global')
         )
-        self.write_lock = os.path.join(self.md_dir + "write_lock")
-        self.asset_list = os.path.join(self.md_dir + "asset_list")
+        self.write_lock = os.path.join(self.md_dir, "write_lock")
+        self.asset_list = os.path.join(self.md_dir, "asset_list")
+        if not os.path.exists(self.md_dir):
+            os.makedirs(self.md_dir)
+        logging.debug("""created CacheMetadata: 
+                      cache_root=%s
+                      md_dir=%s
+                      write_lock=%s""",
+                      self.cache.cache_root, self.md_dir, self.write_lock)
+
 
     def iter_cached_files(self, locked=None):
         """ return list of assets with sizes and lock dates """

@@ -1,4 +1,5 @@
 import glob
+import logging
 import re
 import os
 import subprocess
@@ -113,7 +114,7 @@ class Target():
         
         # for each file:
         #  rsync -lt [username@host:]remote_path cached_target_dir
-        rsync_cmd_templ = 'rsync -lt {remote_pref}{remote_path} {cahed_dir}'
+        rsync_cmd_templ = 'rsync -lt {remote_pref}{remote_file} {cached_dir}'
         remote_pref = self.get_remote_pref()
         # if target is a dir, we need to adjust
         if os.path.dirname(next(iter(self.files))) == self.remote_path:

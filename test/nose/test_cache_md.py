@@ -5,6 +5,9 @@ from jme.stagecache.cache import Cache
 from jme.stagecache.target import Target
 from jme.stagecache.text_metadata import CacheMetadata, TargetMetadata
 
+import logging
+logging.basicConfig(log_level=logging.DEBUG)
+
 def test_cache_md():
     test_dir = 'test/.cache.tmp'
     cache = Cache(test_dir)
