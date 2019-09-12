@@ -45,10 +45,13 @@ def get_cached_target(cache_root, target_path):
     return os.path.abspath(cache_root + target_path)
 
 class Lockable():
-    def get_write_lock(self, sleep_interval=3):
+    def get_write_lock(self, sleep_interval=3, force=False):
         """ mark file as in progress (wait for existing lock) """
         if os.path.exists(self.write_lock):
+            if force:
+                os.remove(self.write_lock)
             logging.info('Waiting for lock...')
+            logging.debug("force is "+ str(force))
             while os.path.exists(self.write_lock):
                 time.sleep(sleep_interval)
 

@@ -1,14 +1,18 @@
 import re
+import logging
 from jme.stagecache.target import get_target
 from jme.stagecache.types import asset_types
 from jme.stagecache.cache import Cache
 
-def cache_target(target_url, cache=None, atype=None, time=None):
+def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     """
     if file not cached, copy to cache.
 
     return cached location
     """
+
+    logging.debug("Starting up: c=%s, a=%s, t=%s, f=%s",
+                  cache, atype, time, force)
     
     ## TODO: get new asset types from config
     # check config files for missing info
@@ -24,7 +28,7 @@ def cache_target(target_url, cache=None, atype=None, time=None):
     target = get_target(target_url, asset_types[atype])
     ## TODO: resonable error if atype not in asset list
 
-    return cache.add_target(target, cache_time)
+    return cache.add_target(target, cache_time, force=force)
 
 def fall_back_to_defaults(cache, atype, time):
     """

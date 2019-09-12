@@ -24,14 +24,15 @@ Use bash magic to embed in a command. EG:
 Usage:
     stagecache.py [options] TARGET_PATH
     stagecache.py
-    stagecache -h | --help
-    stagecache -V | --version
+    stagecache.py -h | --help
+    stagecache.py -V | --version
 
 Options:
     -h --help                Show this screen.
     -V --version             Show version.
     -v --verbose             Print more messages.
     -d --debug               Print even more messages.
+    --force                  Delete any write_locks
     -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
     -t TIME, --time TIME     Keep in cache for [default: 1-0:00]
@@ -67,8 +68,7 @@ def main(arguments):
     # collect arguments that affect function
     target_path = arguments['TARGET_PATH']
     kwargs = {k:arguments["--"+k] \
-              for k in ['time', 'cache', 'atype'] \
-              if "--"+k in arguments}
+              for k in ['time', 'cache', 'atype', 'force']}
 
     # logging
     if arguments['--debug']:
@@ -82,6 +82,8 @@ def main(arguments):
         ll_text = 'quiet'
     logging.basicConfig(level=log_level)
     logging.info("Log level set to %s (%s)" % (log_level, ll_text))
+
+    logging.debug(arguments)
 
     print(cache_target(target_path, **kwargs))
 

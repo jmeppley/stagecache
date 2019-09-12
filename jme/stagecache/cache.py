@@ -14,7 +14,7 @@ class Cache():
         self.config = load_cache_config(self.cache_root)
         self.metadata = CacheMetadata(self)
 
-    def add_target(self, target, cache_time):
+    def add_target(self, target, cache_time, force=False):
         """
         This is where the magic happens:
 
@@ -34,7 +34,7 @@ class Cache():
                                         )
 
         # acquire lock 
-        target_metadata.get_write_lock()
+        target_metadata.get_write_lock(force=force)
 
         ## compare dates (mtimes)
         # target mtime
@@ -49,7 +49,7 @@ class Cache():
 
         if cache_time < target_mtime:
             # cache is out of date
-            self.metadata.get_write_lock()
+            self.metadata.get_write_lock(force=force)
             try:
                 # get updated target size
                 target_size = target.get_size()

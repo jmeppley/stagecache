@@ -10,7 +10,7 @@ URL_REXP = re.compile(r'^([A-Za-z]+)://(?:([^/@]+)@)?([^/]*)(/.+)$')
 def get_target(target_url, asset_type):
     """return appropriate target object """
     ## TODO: allow for user from config
-    match = URL_REXP.search(target_url)    
+    match = URL_REXP.search(target_url)
     if match:
         protocol, user, host, remote_path = match.groups()
         if protocol.upper() in ['SFTP', 'SCP']:
@@ -41,7 +41,7 @@ def collect_target_files(fs, target_path, asset_type):
             files[file_path] = {'mtime': stats.st_mtime,
                                 'size': stats.st_size}
 
-    
+
     # scan filesystem for files matching suffix regex
     if 'suff_patt' in asset_type['contents']:
         patt = asset_type['contents']['suff_patt']
@@ -111,28 +111,31 @@ class Target():
         """ Use rsync to copy files """
         if 'files' not in self.__dict__:
             self.get_target_files()
-        
+
         # for each file:
         #  rsync -lt [username@host:]remote_path cached_target_dir
-        rsync_cmd_templ = 'rsync -lt {remote_pref}{remote_file} {cached_dir}'
+        rsync_cmd_templ = 'rsync -lt {remote_pref}{remote_file} {cached_file}'
         remote_pref = self.get_remote_pref()
         # if target is a dir, we need to adjust
         if os.path.dirname(next(iter(self.files))) == self.remote_path:
             cached_dir = dest_path
         else:
             cached_dir = os.path.dirname(dest_path)
+        if not os.path.exists(cached_dir):
+            os.makedirs(cached_dir)
 
         logging.info("syncing files from " + self.remote_path)
         for remote_file in self.files:
+            cached_file = os.path.join(cached_dir,
+                                       os.path.basename(remote_file))
             rsync_cmd = rsync_cmd_templ.format(**locals())
-            logging.debug("Running: " + rsync_cmd) 
+            logging.debug("Running: " + rsync_cmd)
             subprocess.run(rsync_cmd, shell=True, check=True)
 
 
 class SFTP_Target(Target):
     """ Represents an asset somewhere on a remote filesystem """
     def __init__(self, host, user, remote_path, asset_type):
-        import pysftp
         self.host = host
         self.path_string = os.path.join(host, remote_path)
         self.remote_path = remote_path
@@ -141,12 +144,13 @@ class SFTP_Target(Target):
 
     @contextmanager
     def filesystem(self):
+        import pysftp
         kwargs = {'username': self.username,
                   'host': self.host}
-        conn = pysftp.Connection(**kwargs)
-        yield conn
+        sftp_connection = pysftp.Connection(**kwargs)
+        yield sftp_connection
+        sftp_connection.close()
 
-        conn.close()
 
     def get_remote_pref(self):
         """ prefix for rsync remote path """
