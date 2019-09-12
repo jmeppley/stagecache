@@ -1,3 +1,10 @@
+# vim temp files
+.*.sw[po]
+
+# my test cache
+.cache.tmp
+
+## python ignores from GitHub:
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
