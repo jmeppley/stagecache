@@ -27,10 +27,10 @@ setup(name=NAME,
       url=URL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-      packages=['jme', ],
+      packages=['jme', 'jme.stagecache'],
       scripts=[s for s in glob.glob('*.py')
                if s != 'setup.py'],
-      install_requires=['paramiko', 'pyyaml'],
+      install_requires=['paramiko', 'pyyaml', 'docopt'],
       classifiers=[
           'Development Status :: 2 - Pre-Alpha',
           'Environment :: Console',
