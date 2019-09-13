@@ -42,9 +42,8 @@ import logging
 import os
 import sys
 from docopt import docopt
-from jme.stagecache import cache_target
-
-VERSION = "0.0.1"
+from jme.stagecache.main import cache_target
+from jme.stagecache import VERSION
 
 def main(arguments):
     """ The starting point for command line operation
