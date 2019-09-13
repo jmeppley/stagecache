@@ -3,7 +3,9 @@ import time
 import os
 import shutil
 from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
+from jme.stagecache.target import collect_target_files
 from jme.stagecache.config import load_cache_config
+from jme.stagecache.types import asset_types
 
 class InsufficientSpaceError(Exception):
     pass
@@ -93,9 +95,11 @@ class Cache():
         """
         delete old cached files
         """
+        logging.debug("We need %d bytes in cache", size)
 
         # how much space is there
         free_space = self.check_cache_space()
+        logging.debug("%d bytes free in cache", free_space)
 
         # is it enough
         if size > free_space:
@@ -103,30 +107,34 @@ class Cache():
 
             # get list of stale files
             unlocked_assets = self.metadata.iter_cached_files(locked=False)
+            unlocked_assets = sorted(unlocked_assets,
+                                     key=lambda a: a.get_last_lock_date(),
+                                     reverse=True)
 
             # can we free up enough space?
-            total_unlocked_size = sum(a.get_cached_target_size() \
+            total_unlocked_size = sum(a.get_cached_target_size()[0] \
                                       for a in unlocked_assets)
+            logging.debug("We have %d bytes of stale files we can drop", size)
             if total_unlocked_size + free_space < size:
                 raise InsufficientSpaceError("Cannot cache file. "
                                              "There is not enough space.")
             
             # start deleting stale files ...
-            for asset in sorted(unlocked_assets,
-                                key=lambda a: a.get_last_lock_date(),
-                                reverse=True):
-
+            for asset in unlocked_assets:
                 # delete one at a time ...
                 asset_size = self.remove_cached_file(asset)
+                logging.debug("adding %d to %d", asset_size, free_space)
 
                 # until we have enough space
                 free_space += asset_size
+                logging.debug("We now have %d bytes of free space", free_space)
                 if free_space > size:
                     break
 
 
-    def remove_cached_file(target_metadata):
+    def remove_cached_file(self, target_metadata):
         """ delete cached files from system and update metadata """
+        logging.info("removing %s", target_metadata.target_path)
         # collect file names
         target_files = collect_target_files(os,
                                             target_metadata.cached_target,
@@ -137,16 +145,18 @@ class Cache():
             os.remove(filename)
 
         # remove record
-        return self.metadata.remove_cached_file(asset)
+        return self.metadata.remove_cached_file(target_metadata)
 
 
     def check_cache_space(self):
         """ return the available space on the fs with cache """
 
         if 'cache_size' in self.config: 
-            used_cache_size = [tmd.get_cached_target_size() \
-                               for tmd in self.metadata.iter_cached_files()]
-            return self.config['cache_size'] - used_cached_size
+            used_cache_size = sum(tmd.get_cached_target_size()[0] \
+                                  for tmd in self.metadata.iter_cached_files())
+            logging.debug("%d of %d bytes in cached used", used_cache_size,
+                          self.config['cache_size'])
+            return self.config['cache_size'] - used_cache_size
         else:
             return shutil.disk_usage(self.cache_root).free
 

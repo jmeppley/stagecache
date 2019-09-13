@@ -87,12 +87,14 @@ class TargetMetadata(Lockable):
                       cache_dir, self.md_dir, self.write_lock)
                       
 
-    def get_md_value(self, md_type):
+    def get_md_value(self, md_type, delete=False):
         """  returns mtime of md file and int value from file """
         md_file = os.path.join(self.md_dir, md_type)
         mtime = os.path.getmtime(md_file)
         with open(md_file, 'rt') as md_handle:
             value = int(md_handle.readlines()[0].strip())
+        if delete:
+            os.remove(md_file)
         return (value, mtime)
 
     def set_md_value(self, md_type, value):
@@ -106,7 +108,7 @@ class TargetMetadata(Lockable):
     def catalog(self, md_type):
         """ archives old md and returns value """
         log_file = os.path.join(self.md_dir, 'log')
-        mtime, value = self.get_md_value(md_type)
+        value, mtime = self.get_md_value(md_type, delete=True)
         with open(log_file, 'at') as LOG:
             LOG.write("\t".join((
                 md_type,
@@ -115,7 +117,6 @@ class TargetMetadata(Lockable):
                 str(value),
             )) + "\n")
 
-        os.remove(log_file)
         return value
 
     def get_cached_target_size(self):
@@ -140,7 +141,8 @@ class TargetMetadata(Lockable):
 
     def remove_target(self):
         """ archive metadata for this asset """
-        return self.catalog('size'), self.catalog('cache_lock')
+        self.catalog('cache_lock')
+        return self.catalog('size')
 
 
 class CacheMetadata(Lockable):
@@ -162,13 +164,17 @@ class CacheMetadata(Lockable):
 
     def iter_cached_files(self, locked=None):
         """ return list of assets with sizes and lock dates """
-        with open(self.asset_list) as assets:
-            for asset in assets:
-                # tab separated, two columns
-                target_path, atype = [a.strip() for a in asset.split('\t')]
-                target_metadata = TargetMetadata(self.cache, target_path, atype)
-                if locked is None or target_metadata.is_lock_valid() == locked:
-                    yield target_metadata
+        if os.path.exists(self.asset_list):
+            with open(self.asset_list) as assets:
+                for asset in assets:
+                    # tab separated, two columns
+                    target_path, atype = [a.strip() for a in asset.split('\t')]
+                    target_metadata = TargetMetadata(self.cache,
+                                                     target_path,
+                                                     atype)
+                    if locked is None \
+                            or target_metadata.is_lock_valid() == locked:
+                        yield target_metadata
 
     def remove_cached_file(self, target_metadata):
         """ remove record of cached file, return size """

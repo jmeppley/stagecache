@@ -1,4 +1,6 @@
 import os
+import yaml
+import json
 
 def get_conn_args():
     ## TODO:
@@ -16,8 +18,20 @@ def load_cache_config(cache_root):
     return cache_config
     
 def load_config(config_file):
-    ## TODO:
-    return {}
+    try:
+        return load_yaml_config(config_file)
+    except:
+        pass
+    return load_json_config(config_file)
+
+def load_yaml_config(config_file):
+    with open(config_file) as config_handle:
+        return yaml.load(config_handle, Loader=yaml.FullLoader)
+
+def load_json_config(config_file):
+    with open(config_file) as config_handle:
+        return json.load(config_handle)
+    
 
     
     
