@@ -3,6 +3,7 @@ import logging
 from jme.stagecache.target import get_target
 from jme.stagecache.types import asset_types
 from jme.stagecache.cache import Cache
+from jme.stagecache.config import get_config
 
 def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     """
@@ -30,12 +31,36 @@ def cache_target(target_url, cache=None, atype=None, time=None, force=False):
 
     return cache.add_target(target, cache_time, force=force)
 
+def query_cache(list_files, **kwargs):
+    """ return state of cache:
+        total space used
+        free space
+
+    if list_files is True, for each file, list:
+        path, type, size
+    """
+    cache = kwargs.get('cache', None)
+    if cache is None:
+        cache = get_config()['cache_root']
+    return Cache(cache).inspect_cache()
+
 def fall_back_to_defaults(cache, atype, time):
     """
     Look up the default configuration and use if any of the arguments are 
     set to None
     """
-    ## TODO: look in config for defaults for any of the above that are None
+
+    # default asset type is file
+    ## TODO: unless we want to add auto-detect...
+    if atype is None:
+        atype = 'file'
+
+    if time is None:
+        time = get_config()['default_time']
+
+    if cache is None:
+        cache = get_config()['cache_root']
+
     return cache, atype, time
 
 TIME_REXP = re.compile(r'(?:(\d+)-)?(\d?\d):(\d?\d)(?::(\d\d))?')

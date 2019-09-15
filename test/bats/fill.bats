@@ -14,10 +14,10 @@
     [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.config.py/size ]
     [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/config.py ]
 
-    run ./stagecache.py -c test/.cache.tmp jme/stagecache/__init__.py
+    run ./stagecache.py -c test/.cache.tmp jme/stagecache/main.py
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.__init__.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/__init__.py ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.main.py/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/main.py ]
     [ ! -e test/.cache.tmp$(realpath $(pwd))/stagecache.py ]
 
     run ./stagecache.py -c test/.cache.tmp jme/stagecache/text_metadata.py

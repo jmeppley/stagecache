@@ -4,7 +4,7 @@ import os
 import shutil
 from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
 from jme.stagecache.target import collect_target_files
-from jme.stagecache.config import load_cache_config
+from jme.stagecache.config import get_config
 from jme.stagecache.types import asset_types
 
 class InsufficientSpaceError(Exception):
@@ -12,8 +12,8 @@ class InsufficientSpaceError(Exception):
 
 class Cache():
     def __init__(self, cache_root):
+        logging.debug("Creating class object for " + str(cache_root))
         self.cache_root = os.path.abspath(cache_root)
-        self.config = load_cache_config(self.cache_root)
         self.metadata = CacheMetadata(self)
 
     def add_target(self, target, cache_time, force=False):
@@ -147,16 +147,45 @@ class Cache():
         # remove record
         return self.metadata.remove_cached_file(target_metadata)
 
+    def inspect_cache(self):
+        """ return cache usage, cache availability
+        and list of cached items """
+        used_space = 0
+        cached_files = []
+        for target_metadata in self.metadata.iter_cached_files():
+            target_size = target_metadata.get_cached_target_size()[0]
+            used_space += target_size
+            cached_files.append({
+                'target': target_metadata.target_path,
+                'size': target_size,
+                'type': target_metadata.atype
+            })
+
+        logging.debug("%d bytes in cached used by %d files", used_space,
+                      len(cached_files))
+        if 'cache_size' in get_config():
+            total_space = get_config()['cache_size']
+            free_space = total_space - used_cache_size
+            logging.debug("%d of %d bytes free", free_space, total_space)
+        else:
+            free_space = shutil.disk_usage(self.cache_root).free
+            logging.debug("%d bytes free on filysystem", free_space)
+
+        return {'used': used_space,
+                'free': free_space,
+                'root': self.cache_root,
+                'files': cached_files}
 
     def check_cache_space(self):
         """ return the available space on the fs with cache """
+        return inspect_cache['free']
 
-        if 'cache_size' in self.config: 
+        """ original method:
+        if 'cache_size' in get_config():
             used_cache_size = sum(tmd.get_cached_target_size()[0] \
                                   for tmd in self.metadata.iter_cached_files())
-            logging.debug("%d of %d bytes in cached used", used_cache_size,
-                          self.config['cache_size'])
-            return self.config['cache_size'] - used_cache_size
+            return get_config()['cache_size'] - used_cache_size
         else:
             return shutil.disk_usage(self.cache_root).free
+        """
 

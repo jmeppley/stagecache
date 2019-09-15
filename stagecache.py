@@ -21,9 +21,11 @@ Limited support for groups of files:
 Use bash magic to embed in a command. EG:
     lastal $(stagecache.py -t last /path/to/db) /path/to/query.fasta
 
+Run with no TARGET_PATH to get the number of files and free space in cache. Add
+--verbose or --debug (or -v or -d) to get list of files in cache.
+
 Usage:
-    stagecache.py [options] TARGET_PATH
-    stagecache.py
+    stagecache.py [options] [TARGET_PATH]
     stagecache.py -h | --help
     stagecache.py -V | --version
 
@@ -42,8 +44,9 @@ import logging
 import os
 import sys
 from docopt import docopt
-from jme.stagecache.main import cache_target
+from jme.stagecache.main import cache_target, query_cache
 from jme.stagecache import VERSION
+from jme.stagecache.util import human_readable_bytes
 
 def main(arguments):
     """ The starting point for command line operation
@@ -84,8 +87,23 @@ def main(arguments):
 
     logging.debug(arguments)
 
-    print(cache_target(target_path, **kwargs))
+    if target_path is not None:
+        print(cache_target(target_path, **kwargs))
+    else:
+        list_files = log_level <= logging.INFO
+        cache_data = query_cache(list_files, **kwargs)
+        print("{} used and {} available in {}".format(
+            human_readable_bytes(cache_data['used']),
+            human_readable_bytes(cache_data['free']),
+            cache_data['root']))
 
+        if list_files:
+            for file_data in cache_data['files']:
+                print("{} ({}) uses {}".format(
+                    file_data['target'],
+                    file_data['type'],
+                    human_readable_bytes(file_data['size']),
+                ))
 
 if __name__ == '__main__':
     import sys

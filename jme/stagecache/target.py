@@ -3,13 +3,19 @@ import logging
 import re
 import os
 import subprocess
+import stat
 from contextlib import contextmanager
+from jme.stagecache.config import get_config
 
 URL_REXP = re.compile(r'^([A-Za-z]+)://(?:([^/@]+)@)?([^/]*)(/.+)$')
 
 def get_target(target_url, asset_type):
     """return appropriate target object """
-    ## TODO: allow for user from config
+
+    ## Check 1: is it a full formed URL? EG:
+    #   SFTP://server.com/path/to/file
+    #   file:///local/path
+    #   SCP://user@host.dom/some/path
     match = URL_REXP.search(target_url)
     if match:
         protocol, user, host, remote_path = match.groups()
@@ -22,7 +28,24 @@ def get_target(target_url, asset_type):
         else:
             raise Excpetion("Unsupported protocol: " + protocol)
 
-    # we ge here if there was no match or a file:/// url
+    ## check 2: user configured remote maps
+    for custom_patterns in get_config() \
+                           .get('remote', {}) \
+                           .get('mappings', []):
+        mnt_rexp = re.compile(custom_patterns['pattern'])
+        host_repl = custom_patterns['host_repl']
+        path_repl = custom_patterns['path_repl']
+
+        if not mnt_rexp.search(target_url):
+            continue
+
+        logging.debug("INFERRED URL")
+        source_path = mnt_rexp.sub(path_repl, target_url)
+        host = mnt_rexp.sub(host_repl, target_url)
+        return SFTP_Target(host, None, source_path, asset_type)
+
+    ## 3: just a regular, local file
+    # we ge here if there was no match above
     return Target(target_url, asset_type)
 
 def collect_target_files(fs, target_path, asset_type):
@@ -51,7 +74,8 @@ def collect_target_files(fs, target_path, asset_type):
             if remote_file.startswith(prefix):
                 if re.search(patt, remote_file[clip:]):
                     file_path = os.path.join(remote_dir, remote_file)
-                    if fs.isfile(file_path):
+                    fileattr = os.stat(file_path)
+                    if not stat.S_ISDIR(fileattr.st_mode):
                         stats = fs.stat(file_path)
                         files[file_path] = {'mtime': stats.st_mtime,
                                              'size': stats.st_size}
@@ -140,6 +164,8 @@ class SFTP_Target(Target):
         self.path_string = os.path.join(host, remote_path)
         self.remote_path = remote_path
         self.asset_type = asset_type
+        ## TODO: allow for user and ssh id from config
+        # fall back to current user
         if user is None:
             import getpass
             user = getpass.getuser()
