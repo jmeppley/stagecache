@@ -1,4 +1,10 @@
-from numpy import log, power, abs
+# numpy is faster, but we don't use enough to warrant the extra dependencies
+#from numpy import log, power, abs
+
+# use built in python functions
+from math import log
+power = pow
+
 LN_BASE = log(power(1024, 1/3))
 def human_readable_bytes(x): 
     """ fixed version of https://stackoverflow.com/a/17754143/663466

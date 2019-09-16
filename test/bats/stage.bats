@@ -7,7 +7,7 @@
     ./stagecache.py --version
     run ./stagecache.py --version
     [ "$status" -eq 0 ]
-    [ "$output" = "0.0.1" ]
+    [ "$output" = "0.0.2" ]
 }
 
 @test "staging" {
