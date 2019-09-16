@@ -5,11 +5,10 @@ import os
 import subprocess
 import stat
 from contextlib import contextmanager
-from jme.stagecache.config import get_config
 
 URL_REXP = re.compile(r'^([A-Za-z]+)://(?:([^/@]+)@)?([^/]*)(/.+)$')
 
-def get_target(target_url, asset_type):
+def get_target(target_url, asset_type, config={}):
     """return appropriate target object """
 
     ## Check 1: is it a full formed URL? EG:
@@ -29,7 +28,7 @@ def get_target(target_url, asset_type):
             raise Excpetion("Unsupported protocol: " + protocol)
 
     ## check 2: user configured remote maps
-    for custom_patterns in get_config() \
+    for custom_patterns in config \
                            .get('remote', {}) \
                            .get('mappings', []):
         mnt_rexp = re.compile(custom_patterns['pattern'])

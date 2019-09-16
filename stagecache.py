@@ -15,8 +15,11 @@ Caches to /tmp by default, but new location can be configured:
     * in global config file: ${SCRIPT_PATH}/../etc/stagecache.yaml
 
 Limited support for groups of files:
-    * formateed lastdb files
+    * formated lastdb files
     * TDB...
+
+default cache root and cache lifetimes are configurable (see config.py).
+Fallback values are: ~/.cache and one day (1-0:00).
 
 Use bash magic to embed in a command. EG:
     lastal $(stagecache.py -t last /path/to/db) /path/to/query.fasta
@@ -25,7 +28,8 @@ Run with no TARGET_PATH to get the number of files and free space in cache. Add
 --verbose or --debug (or -v or -d) to get list of files in cache.
 
 Usage:
-    stagecache.py [options] [TARGET_PATH]
+    stagecache.py [options] TARGET_PATH
+    stagecache.py [options] [ --yaml | --json ]
     stagecache.py -h | --help
     stagecache.py -V | --version
 
@@ -37,12 +41,14 @@ Options:
     --force                  Delete any write_locks
     -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
-    -t TIME, --time TIME     Keep in cache for [default: 1-0:00]
+    -t TIME, --time TIME     Keep in cache for at least this time
 """
 
 import logging
 import os
 import sys
+import json
+import yaml
 from docopt import docopt
 from jme.stagecache.main import cache_target, query_cache
 from jme.stagecache import VERSION
@@ -90,20 +96,26 @@ def main(arguments):
     if target_path is not None:
         print(cache_target(target_path, **kwargs))
     else:
-        list_files = log_level <= logging.INFO
-        cache_data = query_cache(list_files, **kwargs)
-        print("{} used and {} available in {}".format(
-            human_readable_bytes(cache_data['used']),
-            human_readable_bytes(cache_data['free']),
-            cache_data['root']))
+        cache_data = query_cache(**kwargs)
+        if arguments['--json']:
+            print(json.dumps(cache_data, indent=1))
+        elif arguments['--yaml']:
+            print(yaml.dump(cache_data, indent=1))
+        else:
+            print("{} used and {} available in {}".format(
+                human_readable_bytes(cache_data['used']),
+                human_readable_bytes(cache_data['free']),
+                cache_data['root']))
 
-        if list_files:
-            for file_data in cache_data['files']:
-                print("{} ({}) uses {}".format(
-                    file_data['target'],
-                    file_data['type'],
-                    human_readable_bytes(file_data['size']),
-                ))
+            # print file details if verbose or debugging
+            if log_level <= logging.INFO:
+                for file_data in cache_data['files']:
+                    print("{} ({}) uses {} for {:0.0f}s".format(
+                        file_data['target'],
+                        file_data['type'],
+                        human_readable_bytes(file_data['size']),
+                        file_data['lock'],
+                    ))
 
 if __name__ == '__main__':
     import sys

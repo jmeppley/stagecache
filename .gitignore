@@ -3,6 +3,7 @@
 
 # my test cache
 .cache.tmp
+.test.files
 
 ## python ignores from GitHub:
 # Byte-compiled / optimized / DLL files

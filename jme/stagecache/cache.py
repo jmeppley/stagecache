@@ -1,6 +1,7 @@
 import logging
 import time
 import os
+import re
 import shutil
 from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
 from jme.stagecache.target import collect_target_files
@@ -13,10 +14,11 @@ class InsufficientSpaceError(Exception):
 class Cache():
     def __init__(self, cache_root):
         logging.debug("Creating class object for " + str(cache_root))
-        self.cache_root = os.path.abspath(cache_root)
+        self.config = get_config(cache_root)
+        self.cache_root = self.config['cache_root']
         self.metadata = CacheMetadata(self)
 
-    def add_target(self, target, cache_time, force=False):
+    def add_target(self, target, cache_time=None, force=False):
         """
         This is where the magic happens:
 
@@ -28,6 +30,12 @@ class Cache():
         params: a Target() object defining the asset to copy
         returns: the path of the cached asset
         """
+
+        # fall back to config if no cache lifetime supplied
+        if cache_time is None:
+            cache_time = self.config['cache_time']
+        # convert time string to seconds
+        cache_time = parse_slurm_time(cache_time)
 
         # get the location in cache to create
         target_metadata = TargetMetadata(self,
@@ -44,12 +52,12 @@ class Cache():
 
         try:
             # cached mtime
-            cache_size, cache_time = \
+            cache_size, cache_mtime = \
                 target_metadata.get_cached_target_size()
         except FileNotFoundError:
-            cache_time = 0
+            cache_mtime = 0
 
-        if cache_time < target_mtime:
+        if cache_mtime < target_mtime:
             # cache is out of date
             self.metadata.get_write_lock(force=force)
             try:
@@ -158,14 +166,15 @@ class Cache():
             cached_files.append({
                 'target': target_metadata.target_path,
                 'size': target_size,
-                'type': target_metadata.atype
+                'type': target_metadata.atype,
+                'lock': target_metadata.get_last_lock_date() - time.time()
             })
 
         logging.debug("%d bytes in cached used by %d files", used_space,
                       len(cached_files))
-        if 'cache_size' in get_config():
-            total_space = get_config()['cache_size']
-            free_space = total_space - used_cache_size
+        if 'cache_size' in self.config:
+            total_space = self.config['cache_size']
+            free_space = total_space - used_space
             logging.debug("%d of %d bytes free", free_space, total_space)
         else:
             free_space = shutil.disk_usage(self.cache_root).free
@@ -178,7 +187,7 @@ class Cache():
 
     def check_cache_space(self):
         """ return the available space on the fs with cache """
-        return inspect_cache['free']
+        return self.inspect_cache()['free']
 
         """ original method:
         if 'cache_size' in get_config():
@@ -188,4 +197,26 @@ class Cache():
         else:
             return shutil.disk_usage(self.cache_root).free
         """
+
+TIME_REXP = re.compile(r'(?:(\d+)-)?(\d?\d):(\d?\d)(?::(\d\d))?')
+def parse_slurm_time(time):
+    """
+    Parse time string and add to current time
+
+    We're using SLURM-style time strings or just seconds.
+    1-0:00 is one day
+    12:00 is twelve hours
+    123 is 123 seconds
+    0:01:23 is one minute 23 seconds
+    """
+    try:
+        days, hours, minutes, seconds = \
+                (0 if g in ["", None] else int(g) \
+                 for g in TIME_REXP.search(time).groups())
+        total_seconds = seconds + 60*(minutes + 60*(hours + 24*days))
+    except:
+        total_seconds = int(time)
+
+    return total_seconds
+
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 @test "does it compile and run" {
-    run ./stagecache.py
-    [ "$status" > 1 ]
+    run ./stagecache.py --foobar
+    [ "$status" -gt 0 ]
     run ./stagecache.py -h
     [ "$status" -eq 0 ]
     ./stagecache.py --version
