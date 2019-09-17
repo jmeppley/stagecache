@@ -1,4 +1,5 @@
 import glob
+import getpass
 import logging
 import re
 import os
@@ -6,10 +7,12 @@ import subprocess
 import stat
 from contextlib import contextmanager
 
+LOGGER = logging.getLogger(name='target')
 URL_REXP = re.compile(r'^([A-Za-z]+)://(?:([^/@]+)@)?([^/]*)(/.+)$')
 
 def get_target(target_url, asset_type, config={}):
     """return appropriate target object """
+    LOGGER.info("Inspecting target: " + target_url)
 
     ## Check 1: is it a full formed URL? EG:
     #   SFTP://server.com/path/to/file
@@ -18,7 +21,10 @@ def get_target(target_url, asset_type, config={}):
     match = URL_REXP.search(target_url)
     if match:
         protocol, user, host, remote_path = match.groups()
+        if user is None:
+            user = user_from_config(config, host)
         if protocol.upper() in ['SFTP', 'SCP']:
+            LOGGER.info("Target on remote host: " + host)
             return SFTP_Target(host, user, remote_path, asset_type)
         if protocol.lower == 'file':
             if len(host) > 0:
@@ -35,17 +41,28 @@ def get_target(target_url, asset_type, config={}):
         host_repl = custom_patterns['host_repl']
         path_repl = custom_patterns['path_repl']
 
+        LOGGER.debug("Checking remote pattern: %r", custom_patterns['pattern'])
+
         if not mnt_rexp.search(target_url):
             continue
 
-        logging.debug("INFERRED URL")
         source_path = mnt_rexp.sub(path_repl, target_url)
         host = mnt_rexp.sub(host_repl, target_url)
-        return SFTP_Target(host, None, source_path, asset_type)
+        user = user_from_config(config, host)
+
+        LOGGER.debug("INFERRED URL SFTP://%s@%s%s", user, host, source_path)
+        return SFTP_Target(host, user, source_path, asset_type)
 
     ## 3: just a regular, local file
     # we ge here if there was no match above
     return Target(target_url, asset_type)
+
+def user_from_config(config, host):
+    """ get username from config for this host. Fall back to local username """
+    local_user = getpass.getuser()
+    default_user = config['remote'].get('SFTP').get('default', {}).get('username', local_user)
+    user = config['remote'].get('SFTP').get(host, {}).get('username', default_user)
+    return user
 
 def collect_target_files(fs, target_path, asset_type):
     """
@@ -73,7 +90,7 @@ def collect_target_files(fs, target_path, asset_type):
             if remote_file.startswith(prefix):
                 if re.search(patt, remote_file[clip:]):
                     file_path = os.path.join(remote_dir, remote_file)
-                    fileattr = os.stat(file_path)
+                    fileattr = fs.stat(file_path)
                     if not stat.S_ISDIR(fileattr.st_mode):
                         stats = fs.stat(file_path)
                         files[file_path] = {'mtime': stats.st_mtime,
@@ -130,8 +147,16 @@ class Target():
         """ empty string for local files """
         return ""
 
-    def copy_to(self, dest_path):
+    def copy_to(self, dest_path, umask=0o664):
         """ Use rsync to copy files """
+
+        # make sure it's an int
+        if isinstance(umask, str):
+            if int(umask) == eval(umask):
+                # it must be an octal, not a straight int
+                umask = "0o" + umask
+            umask = eval(umask)
+
         if 'files' not in self.__dict__:
             self.get_target_files()
 
@@ -147,32 +172,29 @@ class Target():
         if not os.path.exists(cached_dir):
             os.makedirs(cached_dir)
 
-        logging.info("syncing files from " + self.remote_path)
+        LOGGER.info("syncing files from " + self.remote_path)
         for remote_file in self.files:
             cached_file = os.path.join(cached_dir,
                                        os.path.basename(remote_file))
             rsync_cmd = rsync_cmd_templ.format(**locals())
-            logging.debug("Running: " + rsync_cmd)
+            LOGGER.debug("Running: " + rsync_cmd)
             subprocess.run(rsync_cmd, shell=True, check=True)
+
+            # set umask
+            os.chmod(cached_file, umask)
 
 
 class SFTP_Target(Target):
     """ Represents an asset somewhere on a remote filesystem """
     def __init__(self, host, user, remote_path, asset_type):
+        super().__init__(os.path.join(host, remote_path), asset_type)
         self.host = host
-        self.path_string = os.path.join(host, remote_path)
         self.remote_path = remote_path
-        self.asset_type = asset_type
-        ## TODO: allow for user and ssh id from config
-        # fall back to current user
-        if user is None:
-            import getpass
-            user = getpass.getuser()
         self.username = user
 
     @contextmanager
     def filesystem(self):
-        logging.info("COnnecting to %s as %s", self.host, self.username)
+        LOGGER.info("Connecting to %s as %s", self.host, self.username)
         #import pysftp
         #kwargs = {'username': self.username,
         #          'host': self.host}
@@ -190,21 +212,20 @@ class SFTP_Target(Target):
             ## TODO: check for first line with:
             # ---BEGIN XXX PRIVATE KEY---
 
-            logging.debug("Trying key: %s", keyfile)
-            keyfile = os.path.join(ssh_dir, keyfile)
+            LOGGER.debug("Trying key: %s", keyfile)
 
             # figure out what type of key by brute force
             for keygen in [paramiko.DSSKey, paramiko.ECDSAKey, 
                           paramiko.Ed25519Key, paramiko.RSAKey]:
                 try:
-                    logging.debug("Trying: " + repr(keygen))
+                    LOGGER.debug("Trying: " + repr(keygen))
                     pk = keygen.from_private_key_file(keyfile)
                     transport = paramiko.Transport(self.host)
                     transport.connect(username=self.username, pkey=pk)
                 except paramiko.SSHException as e:
                     continue
                 else:
-                    logging.debug("Connected!")
+                    LOGGER.debug("Connected!")
                     sftp = paramiko.SFTPClient.from_transport(transport)
                     yield sftp
                     sftp.close()
@@ -225,3 +246,4 @@ class SFTP_Target(Target):
         return self.username + "@" + self.host + ":"
 
 
+import glob

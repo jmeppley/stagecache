@@ -26,6 +26,7 @@ caches:
         root: ~/.cache
         size: 1.0e+10
         time: 12:00
+        umask: "664"
 remote:
     mappings:
         - pattern: "/mnt/(nas_[^/]+)/(.+)"
@@ -55,6 +56,7 @@ NOTES:
     * if named cahces are configured, users can specify with either path or
     name
     * the caches list is ignored if it's in a cache config
+    * umask must be quoted or an octal ("664" or 0o664)
 
 The default config is below under DEFAULT_CONFIG. See types.py for asset types.
 
@@ -114,7 +116,7 @@ def get_config(cache=None):
 
     # move any globale cache settings into caches
     cache_config['caches'] = {cache_name: {'root': cache_root}}
-    for k in ['size', 'time']:
+    for k in ['size', 'time', 'umask']:
         root_k = 'cache_' + k
         if root_k in cache_config:
             cache_config['caches'][cache_name][k] = cache_config[root_k]
@@ -122,18 +124,18 @@ def get_config(cache=None):
 
     # merge configs
     config = deepcopy(DEFAULT_CONFIG)
-    logging.debug(repr(config.get('caches', None)))
-    apply_defaults(config, cache_config)
-    logging.debug(repr(config.get('caches', None)))
     apply_defaults(config, CONFIGS['global'])
-    logging.debug(repr(config.get('caches', None)))
+    apply_defaults(config, cache_config)
+    apply_defaults(config, CONFIGS['user'])
 
     # copy cache specific settings to top level
-    for k in ['root', 'size', 'time']:
+    for k in ['root', 'size', 'time', 'umask']:
         root_k = 'cache_' + k
         if k in config['caches'][cache_name]:
             config[root_k] = config['caches'][cache_name][k]
 
+    logging.info("Loaded config for " + cache_root)
+    logging.debug(repr(config))
     return config
 
 def load_cache_config(cache_root):
@@ -197,7 +199,9 @@ def load_configs():
 def load_config_file(config_file):
     """ attempt to load as YAML, then as JSON """
 
+    logging.info("Loading config from " + config_file)
     if not os.path.exists(config_file):
+        logging.debug("skipping missing config file")
         return {}
 
     try:

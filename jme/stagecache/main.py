@@ -5,6 +5,8 @@ from jme.stagecache.types import asset_types
 from jme.stagecache.cache import Cache
 from jme.stagecache.config import get_config
 
+LOGGER = logging.getLogger(name='main')
+
 def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     """
     if file not cached, copy to cache.
@@ -12,7 +14,7 @@ def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     return cached location
     """
 
-    logging.debug("Starting up: c=%s, a=%s, t=%s, f=%s",
+    LOGGER.debug("Starting up: c=%s, a=%s, t=%s, f=%s",
                   cache, atype, time, force)
 
     # initialize the Cache (turn directory name into object)
@@ -21,7 +23,7 @@ def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     # initialize the Target
     if atype is None:
         atype = 'file'
-    target = get_target(target_url, asset_types[atype])
+    target = get_target(target_url, asset_types[atype], cache.config)
     ## TODO: resonable error if atype not in asset list
 
     return cache.add_target(target, cache_time=time, force=force)
