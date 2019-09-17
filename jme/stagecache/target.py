@@ -150,13 +150,6 @@ class Target():
     def copy_to(self, dest_path, umask=0o664):
         """ Use rsync to copy files """
 
-        # make sure it's an int
-        if isinstance(umask, str):
-            if int(umask) == eval(umask):
-                # it must be an octal, not a straight int
-                umask = "0o" + umask
-            umask = eval(umask)
-
         if 'files' not in self.__dict__:
             self.get_target_files()
 

@@ -40,11 +40,22 @@ All get_ functions throw FileNotFound exception if asset not yet in cache
 import logging
 import os
 import time
+import stat
 
 def get_cached_target(cache_root, target_path):
     return os.path.abspath(cache_root + target_path)
 
+def makedirs(path, mode=509):
+    if not os.path.exists(path):
+        makedirs(os.path.dirname(path), mode)
+        os.mkdir(path)
+        os.chmod(path, mode=mode)
+
 class Lockable():
+    def __init__(self, cache):
+        self.umask = cache.config['cache_umask']
+        self.umask_dir = self.umask + 0o111
+
     def get_write_lock(self, sleep_interval=3, force=False):
         """ mark file as in progress (wait for existing lock) """
         if os.path.exists(self.write_lock):
@@ -57,6 +68,7 @@ class Lockable():
 
         with open(self.write_lock, 'wt') as LOCK:
             LOCK.write('locked')
+        os.chmod(self.write_lock, self.umask)
 
 
     def release_write_lock(self):
@@ -65,6 +77,7 @@ class Lockable():
 
 class TargetMetadata(Lockable):
     def __init__(self, cache, target_path, atype):
+        super().__init__(cache)
         self.cache_root = os.path.abspath(cache.cache_root)
         self.target_path = target_path
         self.atype = atype
@@ -74,7 +87,7 @@ class TargetMetadata(Lockable):
         cache_dir, cache_name = os.path.split(self.cached_target)
         self.md_dir = os.path.join(cache_dir, '.stagecache.' + cache_name)
         if not os.path.exists(self.md_dir):
-            os.makedirs(self.md_dir)
+            makedirs(self.md_dir, mode=self.umask_dir)
         self.write_lock = os.path.join(self.md_dir, 'write_lock')
         logging.debug("""created TargetMetadata: 
                       cache_root=%s
@@ -104,6 +117,7 @@ class TargetMetadata(Lockable):
             self.catalog(md_type)
         with open(md_file, 'wt') as SIZE:
             SIZE.write(str(int(value)))
+        os.chmod(md_file, self.umask)
 
     def catalog(self, md_type):
         """ archives old md and returns value """
@@ -116,6 +130,7 @@ class TargetMetadata(Lockable):
                 time.ctime(mtime),
                 str(value),
             )) + "\n")
+        os.chmod(log_file, self.umask)
 
         return value
 
@@ -147,6 +162,7 @@ class TargetMetadata(Lockable):
 
 class CacheMetadata(Lockable):
     def __init__(self, cache):
+        super().__init__(cache)
         self.cache = cache
         self.md_dir = os.path.abspath(
             os.path.join(self.cache.cache_root, '.stagecache.global')
@@ -154,7 +170,7 @@ class CacheMetadata(Lockable):
         self.write_lock = os.path.join(self.md_dir, "write_lock")
         self.asset_list = os.path.join(self.md_dir, "asset_list")
         if not os.path.exists(self.md_dir):
-            os.makedirs(self.md_dir)
+            makedirs(self.md_dir, self.umask_dir)
         logging.debug("""created CacheMetadata: 
                       cache_root=%s
                       md_dir=%s
@@ -189,6 +205,7 @@ class CacheMetadata(Lockable):
                     assets.write(asset)
                 else:
                     count += 1
+        os.chmod(self.asset_list, self.umask)
 
         if count == 0:
             logging.error("No match for " + target_path)
@@ -206,6 +223,7 @@ class CacheMetadata(Lockable):
         with open(self.asset_list, 'at') as assets:
             assets.write(target_metadata.target_path + "\t" \
                           + target_metadata.atype + "\n")
+        os.chmod(self.asset_list, self.umask)
 
         # add file specific md
         target_metadata.set_cached_target_size(target_size)

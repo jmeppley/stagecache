@@ -75,6 +75,7 @@ CONFIGS = {}
 DEFAULT_CONFIG = {
     'cache_root': '~/.cache',
     'cache_time': '1-0:00',
+    'cache_umask': '664',
     'asset_types': types.asset_types
 }
 
@@ -134,9 +135,21 @@ def get_config(cache=None):
         if k in config['caches'][cache_name]:
             config[root_k] = config['caches'][cache_name][k]
 
+    # get the umask in the right foramt
+    config['cache_umask'] = fix_umask(config['cache_umask'])
+
     logging.info("Loaded config for " + cache_root)
     logging.debug(repr(config))
     return config
+
+def fix_umask(umask):
+    # make sure it's an int
+    if isinstance(umask, str):
+        if int(umask) == eval(umask):
+            # it must be an octal, not a straight int
+            umask = "0o" + umask
+        umask = eval(umask)
+    return umask
 
 def load_cache_config(cache_root):
     config_file = CACHE_CONFIG_TEMPLATE.format(cache_root=cache_root)
