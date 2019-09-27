@@ -38,6 +38,7 @@ Options:
     -V --version             Show version.
     -v --verbose             Print more messages.
     -d --debug               Print even more messages.
+    --dry_run                Just report what will be copied and/or deleted
     --force                  Delete any write_locks
     -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
@@ -76,7 +77,7 @@ def main(arguments):
     # collect arguments that affect function
     target_path = arguments['TARGET_PATH']
     kwargs = {k:arguments["--"+k] \
-              for k in ['time', 'cache', 'atype', 'force']}
+              for k in ['time', 'cache', 'atype', 'force', 'dry_run']}
 
     # logging
     if arguments['--debug']:

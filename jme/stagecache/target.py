@@ -147,7 +147,7 @@ class Target():
         """ empty string for local files """
         return ""
 
-    def copy_to(self, dest_path, umask=0o664):
+    def copy_to(self, dest_path, umask=0o664, dry_run=False):
         """ Use rsync to copy files """
 
         if 'files' not in self.__dict__:
@@ -162,8 +162,6 @@ class Target():
             cached_dir = dest_path
         else:
             cached_dir = os.path.dirname(dest_path)
-        if not os.path.exists(cached_dir):
-            os.makedirs(cached_dir)
 
         LOGGER.info("syncing files from " + self.remote_path)
         for remote_file in self.files:
@@ -171,11 +169,14 @@ class Target():
                                        os.path.basename(remote_file))
             rsync_cmd = rsync_cmd_templ.format(**locals())
             LOGGER.debug("Running: " + rsync_cmd)
-            subprocess.run(rsync_cmd, shell=True, check=True)
 
-            # set umask
-            os.chmod(cached_file, umask)
+            if not dry_run:
+                if not os.path.exists(cached_dir):
+                    os.makedirs(cached_dir)
+                subprocess.run(rsync_cmd, shell=True, check=True)
 
+                # set umask
+                os.chmod(cached_file, umask)
 
 class SFTP_Target(Target):
     """ Represents an asset somewhere on a remote filesystem """

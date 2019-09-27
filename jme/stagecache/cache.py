@@ -8,17 +8,19 @@ from jme.stagecache.target import collect_target_files
 from jme.stagecache.config import get_config
 from jme.stagecache.types import asset_types
 
+LOGGER = logging.getLogger(name='cache')
+
 class InsufficientSpaceError(Exception):
     pass
 
 class Cache():
     def __init__(self, cache_root):
-        logging.debug("Creating class object for " + str(cache_root))
+        LOGGER.debug("Creating class object for " + str(cache_root))
         self.config = get_config(cache_root)
         self.cache_root = self.config['cache_root']
         self.metadata = CacheMetadata(self)
 
-    def add_target(self, target, cache_time=None, force=False):
+    def add_target(self, target, cache_time=None, force=False, dry_run=False):
         """
         This is where the magic happens:
 
@@ -44,7 +46,7 @@ class Cache():
                                         )
 
         # acquire lock 
-        target_metadata.get_write_lock(force=force)
+        target_metadata.get_write_lock(force=force, dry_run=dry_run)
 
         ## compare dates (mtimes)
         # target mtime
@@ -59,56 +61,63 @@ class Cache():
 
         if cache_mtime < target_mtime:
             # cache is out of date
-            self.metadata.get_write_lock(force=force)
+            self.metadata.get_write_lock(force=force, dry_run=dry_run)
             try:
                 # get updated target size
                 target_size = target.get_size()
 
                 # check for and free up space
                 #  raises InsufficientSpaceException if it can't
-                self.free_up_cache_space(target_size)
+                self.free_up_cache_space(target_size, dry_run=dry_run)
+
 
                 # do the copy
                 target.copy_to(target_metadata.cached_target,
-                               self.config['cache_umask'])
+                               self.config['cache_umask'],
+                               dry_run=dry_run,
+                              )
 
-                # update metadata
-                lock_end_date = int(time.time()) + cache_time
-                self.metadata.add_cached_file(target_metadata,
-                                              target_size,
-                                              lock_end_date)
+                if not dry_run:
+                    # update metadata
+                    lock_end_date = int(time.time()) + cache_time
+                    self.metadata.add_cached_file(target_metadata,
+                                                  target_size,
+                                                  lock_end_date)
 
 
             except InsufficientSpaceError as ise:
-                target_metadata.release_write_lock()
-                self.metadata.release_write_lock()
+                if not dry_run:
+                    target_metadata.release_write_lock()
+                    self.metadata.release_write_lock()
                 raise ise
 
-
-            self.metadata.release_write_lock()
+            if not dry_run:
+                self.metadata.release_write_lock()
 
         else:
             # file already in cache
-            logging.info("File is already in cache, updating lock")
+            LOGGER.info("File is already in cache, updating lock")
 
-            # extend lock if new lock is longer
-            lock_end_date = int(time.time()) + cache_time
-            if target_metadata.get_last_lock_date() < lock_end_date:
-                target_metadata.set_cache_lock_date(lock_end_date)
+            if not dry_run:
+                # extend lock if new lock is longer
+                lock_end_date = int(time.time()) + cache_time
+                if target_metadata.get_last_lock_date() < lock_end_date:
+                    target_metadata.set_cache_lock_date(lock_end_date)
 
-        target_metadata.release_write_lock()
+        if not dry_run:
+            target_metadata.release_write_lock()
         return target_metadata.cached_target
 
 
-    def free_up_cache_space(self, size):
+    def free_up_cache_space(self, size, dry_run=False):
         """
         delete old cached files
         """
-        logging.debug("We need %d bytes in cache", size)
+        LOGGER.debug("We need %d bytes in cache", size)
 
         # how much space is there
         free_space = self.check_cache_space()
-        logging.debug("%d bytes free in cache", free_space)
+        LOGGER.debug("%d bytes free in cache", free_space)
 
         # is it enough
         if size > free_space:
@@ -123,27 +132,38 @@ class Cache():
             # can we free up enough space?
             total_unlocked_size = sum(a.get_cached_target_size()[0] \
                                       for a in unlocked_assets)
-            logging.debug("We have %d bytes of stale files we can drop", size)
+            LOGGER.debug("We have %d bytes of stale files we can drop", size)
             if total_unlocked_size + free_space < size:
                 raise InsufficientSpaceError("Cannot cache file. "
                                              "There is not enough space.")
             
             # start deleting stale files ...
+            space_freed = 0
+            files_removed = 0
             for asset in unlocked_assets:
                 # delete one at a time ...
-                asset_size = self.remove_cached_file(asset)
-                logging.debug("adding %d to %d", asset_size, free_space)
+                asset_size = self.remove_cached_file(asset, dry_run=dry_run)
+                LOGGER.debug("adding %d to %d", asset_size, free_space)
 
                 # until we have enough space
-                free_space += asset_size
-                logging.debug("We now have %d bytes of free space", free_space)
-                if free_space > size:
+                files_removed += 1
+                space_freed += asset_size
+                LOGGER.debug("We now have %d bytes of free space",
+                              free_space + space_freed)
+                if free_space + space_freed > size:
                     break
 
+            LOGGER.info("Removed %d files to free %d bytes",
+                        files_removed, space_freed)
 
-    def remove_cached_file(self, target_metadata):
+
+    def remove_cached_file(self, target_metadata, dry_run=False):
         """ delete cached files from system and update metadata """
-        logging.info("removing %s", target_metadata.target_path)
+        LOGGER.info("removing %s", target_metadata.target_path)
+
+        if dry_run:
+            return target_metadata.get_cached_target_size()
+
         # collect file names
         target_files = collect_target_files(os,
                                             target_metadata.cached_target,
@@ -156,9 +176,16 @@ class Cache():
         # remove record
         return self.metadata.remove_cached_file(target_metadata)
 
-    def inspect_cache(self):
+    def inspect_cache(self, force=False, dry_run=False):
         """ return cache usage, cache availability
         and list of cached items """
+
+        # when inspecting cache, force is a request to delete the 
+        # cache write lock
+        # dry_run is ignored
+        if force:
+            self.metadata.get_write_lock(force=True, dry_run=True)
+
         used_space = 0
         cached_files = []
         for target_metadata in self.metadata.iter_cached_files():
@@ -171,15 +198,15 @@ class Cache():
                 'lock': target_metadata.get_last_lock_date() - time.time()
             })
 
-        logging.debug("%d bytes in cached used by %d files", used_space,
+        LOGGER.debug("%d bytes in cached used by %d files", used_space,
                       len(cached_files))
         if 'cache_size' in self.config:
             total_space = self.config['cache_size']
             free_space = total_space - used_space
-            logging.debug("%d of %d bytes free", free_space, total_space)
+            LOGGER.debug("%d of %d bytes free", free_space, total_space)
         else:
             free_space = shutil.disk_usage(self.cache_root).free
-            logging.debug("%d bytes free on filysystem", free_space)
+            LOGGER.debug("%d bytes free on filysystem", free_space)
 
         return {'used': used_space,
                 'free': free_space,

@@ -7,15 +7,15 @@ from jme.stagecache.config import get_config
 
 LOGGER = logging.getLogger(name='main')
 
-def cache_target(target_url, cache=None, atype=None, time=None, force=False):
+def cache_target(target_url, cache=None, atype=None, time=None, **kwargs):
     """
     if file not cached, copy to cache.
 
     return cached location
     """
 
-    LOGGER.debug("Starting up: c=%s, a=%s, t=%s, f=%s",
-                  cache, atype, time, force)
+    LOGGER.debug("Starting up: c=%s, a=%s, t=%s",
+                  cache, atype, time)
 
     # initialize the Cache (turn directory name into object)
     cache = Cache(cache)
@@ -26,7 +26,7 @@ def cache_target(target_url, cache=None, atype=None, time=None, force=False):
     target = get_target(target_url, asset_types[atype], cache.config)
     ## TODO: resonable error if atype not in asset list
 
-    return cache.add_target(target, cache_time=time, force=force)
+    return cache.add_target(target, cache_time=time, **kwargs)
 
 def query_cache(**kwargs):
     """ return state of cache:
@@ -35,4 +35,4 @@ def query_cache(**kwargs):
 
     """
     cache = kwargs.get('cache', None)
-    return Cache(cache).inspect_cache()
+    return Cache(cache).inspect_cache(**kwargs)
