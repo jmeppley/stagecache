@@ -6,63 +6,25 @@ import os
 import subprocess
 import stat
 from contextlib import contextmanager
+from stagecache.util import parse_url
 
 LOGGER = logging.getLogger(name='target')
-URL_REXP = re.compile(r'^([A-Za-z]+)://(?:([^/@]+)@)?([^/]*)(/.+)$')
 
 def get_target(target_url, asset_type, config={}):
     """return appropriate target object """
     LOGGER.info("Inspecting target: " + target_url)
 
-    ## Check 1: is it a full formed URL? EG:
-    #   SFTP://server.com/path/to/file
-    #   file:///local/path
-    #   SCP://user@host.dom/some/path
-    match = URL_REXP.search(target_url)
-    if match:
-        protocol, user, host, remote_path = match.groups()
-        if user is None:
-            user = user_from_config(config, host)
-        if protocol.upper() in ['SFTP', 'SCP']:
-            LOGGER.info("Target on remote host: " + host)
-            return SFTP_Target(host, user, remote_path, asset_type)
-        if protocol.lower == 'file':
-            if len(host) > 0:
-                raise Exception("file URL should have no host name")
-            return Target(remote_path, asset_type)
+    remote = parse_url(target_url, config)
+
+    if remote is None:
+        # regular file
+        return Target(target_url, asset_type)
+    else:
+        if remote.protocol.upper() in ['SFTP', 'SCP']:
+            LOGGER.info("Target on remote host: " + remote.host)
+            return SFTP_Target(remote, asset_type)
         else:
-            raise Excpetion("Unsupported protocol: " + protocol)
-
-    ## check 2: user configured remote maps
-    for custom_patterns in config \
-                           .get('remote', {}) \
-                           .get('mappings', []):
-        mnt_rexp = re.compile(custom_patterns['pattern'])
-        host_repl = custom_patterns['host_repl']
-        path_repl = custom_patterns['path_repl']
-
-        LOGGER.debug("Checking remote pattern: %r", custom_patterns['pattern'])
-
-        if not mnt_rexp.search(target_url):
-            continue
-
-        source_path = mnt_rexp.sub(path_repl, target_url)
-        host = mnt_rexp.sub(host_repl, target_url)
-        user = user_from_config(config, host)
-
-        LOGGER.debug("INFERRED URL SFTP://%s@%s%s", user, host, source_path)
-        return SFTP_Target(host, user, source_path, asset_type)
-
-    ## 3: just a regular, local file
-    # we ge here if there was no match above
-    return Target(target_url, asset_type)
-
-def user_from_config(config, host):
-    """ get username from config for this host. Fall back to local username """
-    local_user = getpass.getuser()
-    default_user = config['remote'].get('SFTP').get('default', {}).get('username', local_user)
-    user = config['remote'].get('SFTP').get(host, {}).get('username', default_user)
-    return user
+            raise Excpetion("Unsupported protocol: " + remote.protocol)
 
 def collect_target_files(fs, target_path, asset_type):
     """
@@ -180,11 +142,11 @@ class Target():
 
 class SFTP_Target(Target):
     """ Represents an asset somewhere on a remote filesystem """
-    def __init__(self, host, user, remote_path, asset_type):
-        super().__init__(os.path.join(host, remote_path), asset_type)
-        self.host = host
-        self.remote_path = remote_path
-        self.username = user
+    def __init__(self, remote, asset_type):
+        super().__init__(os.path.join(remote.host, remote.path), asset_type)
+        self.host = remote.host
+        self.remote_path = remote.path
+        self.username = remote.user
 
     @contextmanager
     def filesystem(self):

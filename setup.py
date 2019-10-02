@@ -1,5 +1,5 @@
 import glob
-from jme.stagecache import VERSION
+from stagecache import VERSION
 try:
     from setuptools import setup
 except ImportError:
@@ -27,7 +27,7 @@ setup(name=NAME,
       url=URL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-      packages=['jme', 'jme.stagecache'],
+      packages=['stagecache'],
       scripts=[s for s in glob.glob('*.py')
                if s != 'setup.py'],
       install_requires=['paramiko', 'pyyaml', 'docopt'],

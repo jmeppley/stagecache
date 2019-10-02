@@ -1,4 +1,4 @@
-import jme.stagecache.cache as cache
+import stagecache.cache as cache
 
 def test_time_parse():
     assert cache.parse_slurm_time('1-0:00') == 24*60*60

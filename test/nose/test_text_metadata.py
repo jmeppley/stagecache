@@ -1,7 +1,7 @@
 import os
 import subprocess
-from jme.stagecache import text_metadata
-from jme.stagecache.cache import Cache
+from stagecache import text_metadata
+from stagecache.cache import Cache
 
 import logging
 logging.basicConfig(log_level=logging.DEBUG)

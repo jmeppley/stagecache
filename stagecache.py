@@ -51,9 +51,9 @@ import sys
 import json
 import yaml
 from docopt import docopt
-from jme.stagecache.main import cache_target, query_cache
-from jme.stagecache import VERSION
-from jme.stagecache.util import human_readable_bytes
+from stagecache.main import cache_target, query_cache
+from stagecache import VERSION
+from stagecache.util import human_readable_bytes
 
 def main(arguments):
     """ The starting point for command line operation

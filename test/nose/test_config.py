@@ -1,7 +1,7 @@
 import os
 import yaml
 from importlib import reload
-from jme.stagecache import config
+from stagecache import config
 
 # create some test files
 if not os.path.exists('test/.test.files'):
@@ -22,8 +22,11 @@ def test_config_from_global():
         'cache_root': dummy_root,
         'cache_size': 1e10,
     }
+    user_config = {}
     with open(global_config_path, 'wt') as H:
         yaml.dump(global_config, H)
+    with open(user_config_path, 'wt') as H:
+        yaml.dump(user_config, H)
 
     # remove existing config file
     if os.path.exists(os.path.join(dummy_root,
@@ -33,6 +36,7 @@ def test_config_from_global():
 
     reload(config)
     config.GLOBAL_CONFIG = global_config_path
+    config.USER_CONFIG = user_config_path
 
     c = config.get_config()
     assert c['cache_root'] == os.path.abspath(dummy_root)

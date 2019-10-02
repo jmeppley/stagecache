@@ -1,9 +1,9 @@
 import re
 import logging
-from jme.stagecache.target import get_target
-from jme.stagecache.types import asset_types
-from jme.stagecache.cache import Cache
-from jme.stagecache.config import get_config
+from stagecache.target import get_target
+from stagecache.types import asset_types
+from stagecache.cache import Cache
+from stagecache.config import get_config
 
 LOGGER = logging.getLogger(name='main')
 

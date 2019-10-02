@@ -67,7 +67,9 @@ import os
 import yaml
 import json
 from copy import deepcopy
-from jme.stagecache import types
+from stagecache import types
+
+LOGGER = logging.getLogger(name='config')
 
 # read and cache config file contents separately
 CONFIGS = {}
@@ -138,8 +140,8 @@ def get_config(cache=None):
     # get the umask in the right foramt
     config['cache_umask'] = fix_umask(config['cache_umask'])
 
-    logging.info("Loaded config for " + cache_root)
-    logging.debug(repr(config))
+    LOGGER.info("Loaded config for " + cache_root)
+    LOGGER.debug(repr(config))
     return config
 
 def fix_umask(umask):
@@ -168,6 +170,7 @@ def load_configs():
     """ load globa and user configs """
     if 'global' not in CONFIGS:
         # global settings
+        LOGGER.debug('Getting settings from global file: %s', GLOBAL_CONFIG)
         CONFIGS['global'] = load_config_file(GLOBAL_CONFIG)
         # user settings
         CONFIGS['user'] = load_config_file(USER_CONFIG)
@@ -212,9 +215,9 @@ def load_configs():
 def load_config_file(config_file):
     """ attempt to load as YAML, then as JSON """
 
-    logging.info("Loading config from " + config_file)
+    LOGGER.info("Loading config from " + config_file)
     if not os.path.exists(config_file):
-        logging.debug("skipping missing config file")
+        LOGGER.debug("skipping missing config file")
         return {}
 
     try:
@@ -225,7 +228,7 @@ def load_config_file(config_file):
     try:
         return load_json_config(config_file)
     except json.decoder.JSONDecodeError as jerr:
-        logging.error(PARSE_ERR, config_file, yerr, jerr)
+        LOGGER.error(PARSE_ERR, config_file, yerr, jerr)
         raise Exception("Could not load config file: " + config_file)
 
 
