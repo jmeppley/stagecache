@@ -1,7 +1,7 @@
 import os
 import yaml
 from importlib import reload
-from stagecache import config
+from jme.stagecache import config
 
 # create some test files
 if not os.path.exists('test/.test.files'):

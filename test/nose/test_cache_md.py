@@ -1,9 +1,9 @@
 import os
 import time
-from stagecache.types import asset_types
-from stagecache.cache import Cache
-from stagecache.target import Target
-from stagecache.text_metadata import CacheMetadata, TargetMetadata
+from jme.stagecache.types import asset_types
+from jme.stagecache.cache import Cache
+from jme.stagecache.target import Target
+from jme.stagecache.text_metadata import CacheMetadata, TargetMetadata
 
 import logging
 logging.basicConfig(log_level=logging.DEBUG)

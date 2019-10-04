@@ -1,4 +1,4 @@
-from stagecache.util import path_up_to_wildcard, URL_REXP
+from jme.stagecache.util import path_up_to_wildcard, URL_REXP
 
 def test_path_up_to_wildcard():
     " should return last full dir name before first bracket "

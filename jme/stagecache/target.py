@@ -5,7 +5,7 @@ import os
 import subprocess
 import stat
 from contextlib import contextmanager
-from stagecache.util import parse_url
+from jme.stagecache.util import parse_url
 
 LOGGER = logging.getLogger(name='target')
 

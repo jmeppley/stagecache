@@ -67,7 +67,7 @@ import os
 import yaml
 import json
 from copy import deepcopy
-from stagecache import types
+from jme.stagecache import types
 
 LOGGER = logging.getLogger(name='config')
 

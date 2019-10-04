@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-stagecache.py
+stagecache
 
 Given a path to a resource (usually a file),
 
@@ -22,16 +22,16 @@ default cache root and cache lifetimes are configurable (see config.py).
 Fallback values are: ~/.cache and one day (1-0:00).
 
 Use bash magic to embed in a command. EG:
-    lastal $(stagecache.py -t last /path/to/db) /path/to/query.fasta
+    lastal $(stagecache -t last /path/to/db) /path/to/query.fasta
 
 Run with no TARGET_PATH to get the number of files and free space in cache. Add
 --verbose or --debug (or -v or -d) to get list of files in cache.
 
 Usage:
-    stagecache.py [options] TARGET_PATH
-    stagecache.py [options] [ --yaml | --json ]
-    stagecache.py -h | --help
-    stagecache.py -V | --version
+    stagecache [options] TARGET_PATH
+    stagecache [options] [ --yaml | --json ]
+    stagecache -h | --help
+    stagecache -V | --version
 
 Options:
     -h --help                Show this screen.
@@ -51,9 +51,9 @@ import sys
 import json
 import yaml
 from docopt import docopt
-from stagecache.main import cache_target, query_cache
-from stagecache import VERSION
-from stagecache.util import human_readable_bytes
+from jme.stagecache.main import cache_target, query_cache
+from jme.stagecache import VERSION
+from jme.stagecache.util import human_readable_bytes
 
 def main(arguments):
     """ The starting point for command line operation

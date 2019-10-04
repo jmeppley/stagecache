@@ -3,10 +3,10 @@ import time
 import os
 import re
 import shutil
-from stagecache.text_metadata import TargetMetadata, CacheMetadata
-from stagecache.target import collect_target_files
-from stagecache.config import get_config
-from stagecache.types import asset_types
+from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
+from jme.stagecache.target import collect_target_files
+from jme.stagecache.config import get_config
+from jme.stagecache.types import asset_types
 
 LOGGER = logging.getLogger(name='cache')
 

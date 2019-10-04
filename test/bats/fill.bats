@@ -4,33 +4,33 @@
     mkdir -p test/.cache.tmp/.stagecache.global
     echo "cache_size: 12000" > test/.cache.tmp/.stagecache.global/config
 
-    run ./stage_cache -t 0:00:03 -c test/.cache.tmp stage_cache
+    run ./stagecache -t 0:00:03 -c test/.cache.tmp stagecache
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/.stagecache.stage_cache/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stage_cache ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/.stagecache.stagecache/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache ]
 
-    ./stage_cache -c test/.cache.tmp stagecache/config.py
-    run ./stage_cache -c test/.cache.tmp stagecache/config.py
+    ./stagecache -c test/.cache.tmp jme/stagecache/config.py
+    run ./stagecache -c test/.cache.tmp jme/stagecache/config.py
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/.stagecache.config.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/config.py ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.config.py/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/config.py ]
 
     sleep 3
-    run ./stage_cache -c test/.cache.tmp stagecache/main.py
+    run ./stagecache -c test/.cache.tmp jme/stagecache/main.py
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/.stagecache.main.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/main.py ]
-    [ ! -e test/.cache.tmp$(realpath $(pwd))/stage_cache ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.main.py/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/main.py ]
+    [ ! -e test/.cache.tmp$(realpath $(pwd))/stagecache ]
 
-    run ./stage_cache -c test/.cache.tmp stagecache/text_metadata.py
+    run ./stagecache -c test/.cache.tmp jme/stagecache/text_metadata.py
     [ "$status" -gt 0 ]
 }
 
 @test "print cache state" {
-    run ./stage_cache -c test/.cache.tmp
+    run ./stagecache -c test/.cache.tmp
     [ "$status" -eq 0 ]
-    run ./stage_cache -c test/.cache.tmp --json
+    run ./stagecache -c test/.cache.tmp --json
     [ "$status" -eq 0 ]
-    run ./stage_cache -c test/.cache.tmp --yaml
+    run ./stagecache -c test/.cache.tmp --yaml
     [ "$status" -eq 0 ]
 }
