@@ -7,7 +7,7 @@
     ./stage_cache --version
     run ./stage_cache --version
     [ "$status" -eq 0 ]
-    [ "$output" = "0.0.3" ]
+    [ "$output" = "0.0.4" ]
 }
 
 @test "staging" {
