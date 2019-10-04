@@ -1,9 +1,6 @@
 import glob
 from stagecache import VERSION
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_namespace_packages
 
 DESCRIPTION = "Python module and script for staging files to cache dir"
 LONG_DESCRIPTION = open('README.md').read()
@@ -27,8 +24,8 @@ setup(name=NAME,
       url=URL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-      packages=['stagecache'],
-      scripts=['stage_cache'],
+	  packages=find_namespace_packages(include=['stagecache.*']),
+      scripts=['stagecache'],
       install_requires=['paramiko', 'pyyaml', 'docopt'],
       classifiers=[
           'Development Status :: 2 - Pre-Alpha',
