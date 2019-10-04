@@ -116,7 +116,7 @@ class Target():
 
         # for each file:
         #  rsync -lt [username@host:]remote_path cached_target_dir
-        rsync_cmd_templ = 'rsync -lt {remote_pref}{remote_file} {cached_file}'
+        rsync_cmd_templ = 'rsync -Lt {remote_pref}{remote_file} {cached_file}'
         remote_pref = self.get_remote_pref()
         # if target is a dir, we need to adjust
         if os.path.dirname(next(iter(self.files))) == self.remote_path:
