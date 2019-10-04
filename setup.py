@@ -28,8 +28,7 @@ setup(name=NAME,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
       packages=['stagecache'],
-      scripts=[s for s in glob.glob('*.py')
-               if s != 'setup.py'],
+      scripts=['stage_cache'],
       install_requires=['paramiko', 'pyyaml', 'docopt'],
       classifiers=[
           'Development Status :: 2 - Pre-Alpha',

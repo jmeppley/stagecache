@@ -1,5 +1,4 @@
 import glob
-import getpass
 import logging
 import re
 import os
@@ -165,6 +164,7 @@ class SFTP_Target(Target):
                 continue
             if keyfile.endswith(".pub"):
                 continue
+            keypath = os.path.join(ssh_dir, keyfile)
             ## TODO: check for first line with:
             # ---BEGIN XXX PRIVATE KEY---
 
@@ -175,7 +175,7 @@ class SFTP_Target(Target):
                           paramiko.Ed25519Key, paramiko.RSAKey]:
                 try:
                     LOGGER.debug("Trying: " + repr(keygen))
-                    pk = keygen.from_private_key_file(keyfile)
+                    pk = keygen.from_private_key_file(keypath)
                     transport = paramiko.Transport(self.host)
                     transport.connect(username=self.username, pkey=pk)
                 except paramiko.SSHException as e:

@@ -2,11 +2,14 @@
 #from numpy import log, power, abs
 
 # use built in python functions
+import logging
+import getpass
 import os
 import re
 from math import log
 from collections import namedtuple
 power = pow
+LOGGER = logging.getLogger(name='util')
 
 LN_BASE = log(power(1024, 1/3))
 def human_readable_bytes(x):
@@ -87,7 +90,7 @@ def parse_url(url, config, use_local=False, has_wildcards=False):
         user = user_from_config(config, host)
 
         LOGGER.debug("INFERRED URL SFTP://%s@%s%s", user, host, source_path)
-        return Remote('SFTP', user, host, path)
+        return Remote('SFTP', user, host, source_path)
 
     ## 3: just a regular, local file
     # we ge here if there was no match above

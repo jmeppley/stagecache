@@ -176,7 +176,7 @@ class Cache():
         # remove record
         return self.metadata.remove_cached_file(target_metadata)
 
-    def inspect_cache(self, force=False, dry_run=False):
+    def inspect_cache(self, force=False, dry_run=False, **kwargs):
         """ return cache usage, cache availability
         and list of cached items """
 

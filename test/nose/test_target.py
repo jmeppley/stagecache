@@ -3,7 +3,7 @@ from stagecache.target import get_target
 from stagecache.types import asset_types
 
 def test_get_target():
-    test_file = 'stagecache.py'
+    test_file = 'stage_cache'
     t = get_target(test_file, asset_types['file'])
     assert t.remote_path == test_file
     assert t.path_string == os.path.abspath(test_file)

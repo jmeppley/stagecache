@@ -4,33 +4,33 @@
     mkdir -p test/.cache.tmp/.stagecache.global
     echo "cache_size: 12000" > test/.cache.tmp/.stagecache.global/config
 
-    run ./stagecache.py -t 0:00:03 -c test/.cache.tmp stagecache.py
+    run ./stage_cache -t 0:00:03 -c test/.cache.tmp stage_cache
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/.stagecache.stagecache.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache.py ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/.stagecache.stage_cache/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stage_cache ]
 
-    ./stagecache.py -c test/.cache.tmp jme/stagecache/config.py
-    run ./stagecache.py -c test/.cache.tmp jme/stagecache/config.py
+    ./stage_cache -c test/.cache.tmp stagecache/config.py
+    run ./stage_cache -c test/.cache.tmp stagecache/config.py
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.config.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/config.py ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/.stagecache.config.py/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/config.py ]
 
     sleep 3
-    run ./stagecache.py -c test/.cache.tmp jme/stagecache/main.py
+    run ./stage_cache -c test/.cache.tmp stagecache/main.py
     [ "$status" -eq 0 ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/.stagecache.main.py/size ]
-    [ -e test/.cache.tmp$(realpath $(pwd))/jme/stagecache/main.py ]
-    [ ! -e test/.cache.tmp$(realpath $(pwd))/stagecache.py ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/.stagecache.main.py/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/stagecache/main.py ]
+    [ ! -e test/.cache.tmp$(realpath $(pwd))/stage_cache ]
 
-    run ./stagecache.py -c test/.cache.tmp jme/stagecache/text_metadata.py
+    run ./stage_cache -c test/.cache.tmp stagecache/text_metadata.py
     [ "$status" -gt 0 ]
 }
 
 @test "print cache state" {
-    run ./stagecache.py -c test/.cache.tmp
+    run ./stage_cache -c test/.cache.tmp
     [ "$status" -eq 0 ]
-    run ./stagecache.py -c test/.cache.tmp --json
+    run ./stage_cache -c test/.cache.tmp --json
     [ "$status" -eq 0 ]
-    run ./stagecache.py -c test/.cache.tmp --yaml
+    run ./stage_cache -c test/.cache.tmp --yaml
     [ "$status" -eq 0 ]
 }
