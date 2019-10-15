@@ -1,5 +1,5 @@
 import glob
-from stagecache import VERSION
+from jme.stagecache import VERSION
 from setuptools import setup, find_namespace_packages
 
 DESCRIPTION = "Python module and script for staging files to cache dir"
@@ -24,7 +24,7 @@ setup(name=NAME,
       url=URL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-	  packages=find_namespace_packages(include=['stagecache.*']),
+	  packages=find_namespace_packages(include=['jme.*']),
       scripts=['stagecache'],
       install_requires=['paramiko', 'pyyaml', 'docopt'],
       classifiers=[
