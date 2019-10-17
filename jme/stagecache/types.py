@@ -3,7 +3,6 @@ asset_types = {
     'lastdb': {'name': 'lastdb',
                'contents': {
                    'suff_patt': '[0-9]*\.(prj|suf|bck|ssp|tis|sds|des)$',
-                   'suff_list': ['.tax', '.ids'],
                }
               },
     'taxdump': {'name': 'taxdump',

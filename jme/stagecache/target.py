@@ -9,6 +9,9 @@ from jme.stagecache.util import parse_url
 
 LOGGER = logging.getLogger(name='target')
 
+class EmptyTargetException(Exception):
+    pass
+
 def get_target(target_url, asset_type, config={}):
     """return appropriate target object """
     LOGGER.info("Inspecting target: " + target_url)
@@ -80,6 +83,12 @@ class Target():
             files = collect_target_files(fs,
                                          self.remote_path,
                                          self.asset_type)
+
+            if len(files) == 0:
+                raise EmptyTargetException(
+                    "Target {}({}) not found!"
+                    .format(self.path_string, self.asset_type['name'])
+                )
 
             self.mtime = max(d['mtime'] for d in files.values())
             self.size = sum(d['size'] for d in files.values())
