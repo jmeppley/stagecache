@@ -95,7 +95,12 @@ def main(arguments):
     logging.debug(arguments)
 
     if target_path is not None:
-        print(cache_target(target_path, **kwargs))
+        try:
+            print(cache_target(target_path, **kwargs))
+        except Exception as e:
+            # If anything fails, print the target_url before quitting
+            print(target_path)
+            raise e
     else:
         cache_data = query_cache(**kwargs)
         if arguments['--json']:

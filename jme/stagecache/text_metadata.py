@@ -41,6 +41,8 @@ import logging
 import os
 import time
 import stat
+from contextlib import contextmanager
+
 
 def get_cached_target(cache_root, target_path):
     return os.path.abspath(cache_root + target_path)
@@ -56,8 +58,28 @@ class Lockable():
         self.umask = cache.config['cache_umask']
         self.umask_dir = self.umask + 0o111
 
+    @contextmanager
+    def lock(self, sleep_interval=3, force=False, dry_run=False):
+        """
+        Aquire and relase lock as a context manager.
+        EG:
+        with target.lock():
+            ...
+        
+        see get_write_lock for arguments
+        """
+        try:
+            self.get_write_lock(sleep_interval, force, dry_run)
+            yield None
+            logging.debug('Done with lock...')
+        finally:
+            # only release lock if it was NOT a dry run
+            if not dry_run:
+                self.release_write_lock()
+
     def get_write_lock(self, sleep_interval=3, force=False, dry_run=False):
         """ mark file as in progress (wait for existing lock) """
+        logging.debug('Creating lock...')
         if os.path.exists(self.write_lock):
             if force:
                 os.remove(self.write_lock)
@@ -74,10 +96,13 @@ class Lockable():
             LOCK.write('locked')
         os.chmod(self.write_lock, self.umask)
 
-
     def release_write_lock(self):
         """ remove in_progress mark """
-        os.remove(self.write_lock)
+        logging.info('Releaseing lock...')
+        try: 
+            os.remove(self.write_lock)
+        except:
+            pass
 
 class TargetMetadata(Lockable):
     def __init__(self, cache, target_path, atype):

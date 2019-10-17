@@ -7,7 +7,7 @@
     ./stagecache --version
     run ./stagecache --version
     [ "$status" -eq 0 ]
-    [ "$output" = "0.0.5" ]
+    [ "$output" = "0.0.7" ]
 }
 
 @test "staging" {
@@ -20,7 +20,24 @@
     [ -e test/.cache.tmp$(realpath $(pwd))/.stagecache.stagecache/size ]
     [ -e test/.cache.tmp$(realpath $(pwd))/stagecache ]
     
-
-    
 }
 
+@test "release lock on error" {
+    rm -rf test/.cache.tmp
+
+    run ./stagecache -c test/.cache.tmp nonexistent.file
+    [ "$status" -gt 0 ]
+
+    # the second run will hang if the lock wasn't released properly
+    run ./stagecache -c test/.cache.tmp nonexistent.file
+    [ "$status" -gt 0 ]
+}
+
+@test "print cache state" {
+    run ./stagecache -c test/.cache.tmp
+    [ "$status" -eq 0 ]
+    run ./stagecache -c test/.cache.tmp --json
+    [ "$status" -eq 0 ]
+    run ./stagecache -c test/.cache.tmp --yaml
+    [ "$status" -eq 0 ]
+}

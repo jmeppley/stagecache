@@ -46,66 +46,54 @@ class Cache():
                                         )
 
         # acquire lock 
-        target_metadata.get_write_lock(force=force, dry_run=dry_run)
+        with target_metadata.lock(force=force, dry_run=dry_run):
 
-        ## compare dates (mtimes)
-        # target mtime
-        target_mtime = target.get_mtime()
+            ## compare dates (mtimes)
+            # target mtime
+            target_mtime = target.get_mtime()
 
-        try:
-            # cached mtime
-            cache_size, cache_mtime = \
-                target_metadata.get_cached_target_size()
-        except FileNotFoundError:
-            cache_mtime = 0
-
-        if cache_mtime < target_mtime:
-            # cache is out of date
-            self.metadata.get_write_lock(force=force, dry_run=dry_run)
             try:
-                # get updated target size
-                target_size = target.get_size()
+                # cached mtime
+                cache_size, cache_mtime = \
+                    target_metadata.get_cached_target_size()
+            except FileNotFoundError:
+                cache_mtime = 0
 
-                # check for and free up space
-                #  raises InsufficientSpaceException if it can't
-                self.free_up_cache_space(target_size, dry_run=dry_run)
+            if cache_mtime < target_mtime:
+                # cache is out of date
+                with self.metadata.lock(force=force, dry_run=dry_run):
+                    # get updated target size
+                    target_size = target.get_size()
+
+                    # check for and free up space
+                    #  raises InsufficientSpaceException if it can't
+                    self.free_up_cache_space(target_size, dry_run=dry_run)
 
 
-                # do the copy
-                target.copy_to(target_metadata.cached_target,
-                               self.config['cache_umask'],
-                               dry_run=dry_run,
-                              )
+                    # do the copy
+                    target.copy_to(target_metadata.cached_target,
+                                   self.config['cache_umask'],
+                                   dry_run=dry_run,
+                                  )
+
+                    if not dry_run:
+                        # update metadata
+                        lock_end_date = int(time.time()) + cache_time
+                        self.metadata.add_cached_file(target_metadata,
+                                                      target_size,
+                                                      lock_end_date)
+
+
+            else:
+                # file already in cache
+                LOGGER.info("File is already in cache, updating lock")
 
                 if not dry_run:
-                    # update metadata
+                    # extend lock if new lock is longer
                     lock_end_date = int(time.time()) + cache_time
-                    self.metadata.add_cached_file(target_metadata,
-                                                  target_size,
-                                                  lock_end_date)
+                    if target_metadata.get_last_lock_date() < lock_end_date:
+                        target_metadata.set_cache_lock_date(lock_end_date)
 
-
-            except InsufficientSpaceError as ise:
-                if not dry_run:
-                    target_metadata.release_write_lock()
-                    self.metadata.release_write_lock()
-                raise ise
-
-            if not dry_run:
-                self.metadata.release_write_lock()
-
-        else:
-            # file already in cache
-            LOGGER.info("File is already in cache, updating lock")
-
-            if not dry_run:
-                # extend lock if new lock is longer
-                lock_end_date = int(time.time()) + cache_time
-                if target_metadata.get_last_lock_date() < lock_end_date:
-                    target_metadata.set_cache_lock_date(lock_end_date)
-
-        if not dry_run:
-            target_metadata.release_write_lock()
         return target_metadata.cached_target
 
 
@@ -184,6 +172,7 @@ class Cache():
         # cache write lock
         # dry_run is ignored
         if force:
+            # the following deletes the lock and does not make a new one
             self.metadata.get_write_lock(force=True, dry_run=True)
 
         used_space = 0
