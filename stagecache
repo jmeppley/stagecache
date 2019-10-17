@@ -39,7 +39,7 @@ Options:
     -v --verbose             Print more messages.
     -d --debug               Print even more messages.
     --dry_run                Just report what will be copied and/or deleted
-    --force                  Delete any write_locks
+    --force                  Delete any write_locks, and re-run rsync
     -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
     -t TIME, --time TIME     Keep in cache for at least this time

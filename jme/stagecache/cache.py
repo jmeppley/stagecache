@@ -59,7 +59,7 @@ class Cache():
             except FileNotFoundError:
                 cache_mtime = 0
 
-            if cache_mtime < target_mtime:
+            if force or cache_mtime < target_mtime:
                 # cache is out of date
                 with self.metadata.lock(force=force, dry_run=dry_run):
                     # get updated target size
