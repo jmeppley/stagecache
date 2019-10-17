@@ -4,11 +4,15 @@ Stage files in a local cache.
 ## Overview
 ### Limited Storage
 The primary use case for stagecache is to automatical copy files from remote or
-low-performance volumes to faster local storage when there is not enough local
-space to store all resources.
+low-performance volumes to faster local storage. This is useful when there is not
+enough space in the fast/local filesystem to store all resources.
 
 ### checksums
 Files are copied with rsync (over ssh for remote files) to prevent copy errors.
+
+### lock lifetime
+Files are placed in the cache with an expiration date. Until that time, other files
+cannot displace them. After that time, files may be deleted if space is needed.
 
 ## installation
 Simple install with conda:
@@ -19,7 +23,7 @@ Or with setup tools:
 
     git clone https://github.com/jmeppley/stagecache
     cd stagecache
-    python setup.py install
+    pip install -e $(pwd)
 
 ## Usage
 The basic usage is:
@@ -69,8 +73,8 @@ Run `stagecache.py -h` for details.
 
 Configuration files are read from (if present):
     - /etc/stagecache.d/config
-    - {cache_dir}/.stagecache.global/config
     - ${HOME}/.config/stagecache/config
+    - {cache_dir}/.stagecache.global/config
 
 Files may be JSON or YAML.
 
