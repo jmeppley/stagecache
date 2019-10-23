@@ -1,3 +1,13 @@
+"""
+miscelaneous functions
+
+def human_readable_bytes(byt):
+def path_up_to_wildcard(full_path):
+def parse_url(url, config, use_local=False, has_wildcards=False):
+def user_from_config(config, host):
+"""
+
+
 # numpy is faster, but we don't use enough to warrant the extra dependencies
 #from numpy import log, power, abs
 
@@ -12,13 +22,14 @@ power = pow
 LOGGER = logging.getLogger(name='util')
 
 LN_BASE = log(power(1024, 1/3))
-def human_readable_bytes(x):
+def human_readable_bytes(byt):
     """ fixed version of https://stackoverflow.com/a/17754143/663466
      hybrid of https://stackoverflow.com/a/10171475/2595465
       with https://stackoverflow.com/a/5414105/2595465  """
     # return bytes if small
-    if x <= 99: return str(int(x))
-    magnitude = int(log(abs(x)) / LN_BASE)
+    if byt <= 99:
+        return str(int(byt))
+    magnitude = int(log(abs(byt)) / LN_BASE)
     if magnitude > 19:
         float_fmt = '%i'
         illion = 20 // 3
@@ -27,7 +38,7 @@ def human_readable_bytes(x):
         float_fmt = '%' + str(mag3) + "." + str(3-mag3) + 'f'
         illion = (magnitude + 1) // 3
     format_str = float_fmt + ['', 'K', 'M', 'G', 'T', 'P', 'E'][illion]
-    return (format_str % (x * 1.0 / (1024 ** illion))).lstrip('0')
+    return (format_str % (byt * 1.0 / (1024 ** illion))).lstrip('0')
 
 def path_up_to_wildcard(full_path):
     """ If a given path has a wildcard placeholder ( eg {sample} ),
@@ -57,19 +68,20 @@ def parse_url(url, config, use_local=False, has_wildcards=False):
     if match:
         remote = Remote(*match.groups())
         if remote.user is None:
-            remote.user = user_from_config(config, remote.host)
+            user = user_from_config(config, remote.host)
+            remote = Remote(remote.protocol, user,
+                            remote.host, remote.path)
         if remote.protocol.lower == 'file':
             if len(remote.host) > 0:
                 raise Exception("file URL should have no host name")
             return None
-        else:
-            return remote
+        return remote
 
     # skip check 2 if file exists and we're OK using local files
     if use_local:
-         if os.path.exists(path_up_to_wildcard(source) \
-                           if glob else source):
-              return None, source
+        if os.path.exists(path_up_to_wildcard(url) \
+                          if has_wildcards else url):
+            return None
 
 
     ## check 2: user configured remote maps
@@ -100,7 +112,10 @@ def parse_url(url, config, use_local=False, has_wildcards=False):
 def user_from_config(config, host):
     """ get username from config for this host. Fall back to local username """
     local_user = getpass.getuser()
-    default_user = config['remote'].get('SFTP').get('default', {}).get('username', local_user)
-    user = config['remote'].get('SFTP').get(host, {}).get('username', default_user)
+    LOGGER.debug("config: %r", config)
+    default_user = config.get('remote', {})\
+                         .get('SFTP', {}) \
+                         .get('default', {}) \
+                         .get('username', local_user)
+    user = config.get('remote', {}).get('SFTP', {}).get(host, {}).get('username', default_user)
     return user
-
