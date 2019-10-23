@@ -8,7 +8,7 @@ Given a path to a resource (usually a file),
  * copy file to cache if missing
  * return path to cached file
 
-Caches to /tmp by default, but new location can be configured:
+Caches to ~/.cache by default, but a new location can be configured:
     * with command line options (see below)
     * in local config file: .stagecache.yaml
     * in user config file: ~/.config/stagecache.yaml
@@ -46,8 +46,6 @@ Options:
 """
 
 import logging
-import os
-import sys
 import json
 import yaml
 from docopt import docopt
@@ -57,15 +55,15 @@ from jme.stagecache.util import human_readable_bytes
 
 def main(arguments):
     """ The starting point for command line operation
-    
+
     Takes arguments from docopt (see 'if' block at end)
 
     Arguments from docopt like:
     {
-          "--help": false, 
-          "--verbose": true, 
-          "--time": false, 
-          "--version": false, 
+          "--help": false,
+          "--verbose": true,
+          "--time": false,
+          "--version": false,
           "--cache": None,
           "--atype": None,
           "TARGET_PATH": "/path/to/target.ext",
@@ -90,7 +88,7 @@ def main(arguments):
         log_level = logging.WARNING
         ll_text = 'quiet'
     logging.basicConfig(level=log_level)
-    logging.info("Log level set to %s (%s)" % (log_level, ll_text))
+    logging.info("Log level set to %s (%s)", log_level, ll_text)
 
     logging.debug(arguments)
 
@@ -124,7 +122,5 @@ def main(arguments):
                     ))
 
 if __name__ == '__main__':
-    import sys
     arguments = docopt(__doc__, version=VERSION)
     main(arguments)
-
