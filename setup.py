@@ -28,7 +28,7 @@ setup(name=NAME,
       scripts=['stagecache'],
       install_requires=['paramiko', 'pyyaml', 'docopt'],
       classifiers=[
-          'Development Status :: 2 - Pre-Alpha',
+          'Development Status :: 3 - Alpha',
           'Environment :: Console',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: MIT',
