@@ -41,7 +41,7 @@ If you don't have a cache location configured (see below), it will default to ~/
 
     stagecache.py -c /path/to/cache /path/to/file
 
-StageCache supports some compoud file types (bwa and lastdb databases), and
+StageCache supports some compound file types (bwa and lastdb databases), and
 more can be configured.
 
     lastal $(stagecache.py -a lastdb /path/to/lastdb) /path/to/query.fasta
