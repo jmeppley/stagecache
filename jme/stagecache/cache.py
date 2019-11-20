@@ -7,6 +7,7 @@ from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
 from jme.stagecache.target import collect_target_files
 from jme.stagecache.config import get_config
 from jme.stagecache.types import asset_types
+from jme.stagecache.util import get_time_string
 
 LOGGER = logging.getLogger(name='cache')
 
@@ -86,11 +87,14 @@ class Cache():
 
             else:
                 # file already in cache
-                LOGGER.info("File is already in cache, updating lock")
+                # extend lock if new lock is longer
+                lock_end_date = int(time.time()) + cache_time
+
+                LOGGER.info("File is already in cache, "
+                            "updating expiration to %s.",
+                            get_time_string(lock_end_date))
 
                 if not dry_run:
-                    # extend lock if new lock is longer
-                    lock_end_date = int(time.time()) + cache_time
                     if target_metadata.get_last_lock_date() < lock_end_date:
                         target_metadata.set_cache_lock_date(lock_end_date)
 
@@ -176,16 +180,16 @@ class Cache():
             self.metadata.get_write_lock(force=True, dry_run=True)
 
         used_space = 0
-        cached_files = []
+        cached_files = {}
         for target_metadata in self.metadata.iter_cached_files():
             target_size = target_metadata.get_cached_target_size()[0]
             used_space += target_size
-            cached_files.append({
-                'target': target_metadata.target_path,
+            target = target_metadata.target_path
+            cached_files[target] = {
                 'size': target_size,
                 'type': target_metadata.atype,
-                'lock': target_metadata.get_last_lock_date() - time.time()
-            })
+                'lock': target_metadata.get_last_lock_date()
+            }
 
         LOGGER.debug("%d bytes in cached used by %d files", used_space,
                       len(cached_files))

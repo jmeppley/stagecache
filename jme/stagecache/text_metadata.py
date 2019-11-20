@@ -43,6 +43,7 @@ import time
 import stat
 from contextlib import contextmanager
 
+LOGGER = logging.getLogger(name='metadata')
 
 def get_cached_target(cache_root, target_path):
     return os.path.abspath(cache_root + target_path)
@@ -71,7 +72,7 @@ class Lockable():
         try:
             self.get_write_lock(sleep_interval, force, dry_run)
             yield None
-            logging.debug('Done with lock...')
+            LOGGER.debug('Done with lock...')
         finally:
             # only release lock if it was NOT a dry run
             if not dry_run:
@@ -79,14 +80,14 @@ class Lockable():
 
     def get_write_lock(self, sleep_interval=3, force=False, dry_run=False):
         """ mark file as in progress (wait for existing lock) """
-        logging.debug('Creating lock...')
+        LOGGER.debug('Creating lock...')
         if os.path.exists(self.write_lock):
             if force:
                 os.remove(self.write_lock)
             if dry_run:
                 return
-            logging.info('Waiting for lock...')
-            logging.debug("force is "+ str(force))
+            LOGGER.info('Waiting for lock...')
+            LOGGER.debug("force is "+ str(force))
             while os.path.exists(self.write_lock):
                 time.sleep(sleep_interval)
 
@@ -98,7 +99,7 @@ class Lockable():
 
     def release_write_lock(self):
         """ remove in_progress mark """
-        logging.info('Releaseing lock...')
+        LOGGER.debug('Releasing lock (%s)...', self.write_lock)
         try: 
             os.remove(self.write_lock)
         except:
@@ -118,7 +119,7 @@ class TargetMetadata(Lockable):
         if not os.path.exists(self.md_dir):
             makedirs(self.md_dir, mode=self.umask_dir)
         self.write_lock = os.path.join(self.md_dir, 'write_lock')
-        logging.debug("""created TargetMetadata: 
+        LOGGER.debug("""created TargetMetadata: 
                       cache_root=%s
                       target_path=%s
                       cached_target=%s
@@ -176,7 +177,7 @@ class TargetMetadata(Lockable):
         return self.get_md_value('cache_lock')[0]
 
     def set_cache_lock_date(self, date):
-        """ writes size to file """
+        """ writes new expiration date to file """
         self.set_md_value('cache_lock', date)
 
     def is_lock_valid(self):
@@ -200,7 +201,7 @@ class CacheMetadata(Lockable):
         self.asset_list = os.path.join(self.md_dir, "asset_list")
         if not os.path.exists(self.md_dir):
             makedirs(self.md_dir, self.umask_dir)
-        logging.debug("""created CacheMetadata: 
+        LOGGER.debug("""created CacheMetadata: 
                       cache_root=%s
                       md_dir=%s
                       write_lock=%s""",
@@ -209,50 +210,68 @@ class CacheMetadata(Lockable):
 
     def iter_cached_files(self, locked=None):
         """ return list of assets with sizes and lock dates """
+        LOGGER.debug("Checking asset list: %s", self.asset_list)
+        for target_path, atype in self.list_assets():
+            target_metadata = TargetMetadata(self.cache,
+                                             target_path,
+                                             atype)
+            if locked is None  or target_metadata.is_lock_valid() == locked:
+                yield target_metadata
+
+    def list_assets(self):
+        """ return list of path, type tuples in cache """
+        LOGGER.debug("Fetching asset list: %s", self.asset_list)
         if os.path.exists(self.asset_list):
             with open(self.asset_list) as assets:
-                for asset in assets:
-                    # tab separated, two columns
-                    target_path, atype = [a.strip() for a in asset.split('\t')]
-                    target_metadata = TargetMetadata(self.cache,
-                                                     target_path,
-                                                     atype)
-                    if locked is None \
-                            or target_metadata.is_lock_valid() == locked:
-                        yield target_metadata
+                assets = [tuple(a.strip() for a in asset.split('\t'))
+                          for asset in assets.readlines()]
+                LOGGER.debug("Found %d assets in %s",
+                             len(assets),
+                             self.asset_list,
+                            )
+                return assets
+        else:
+            return []
+
 
     def remove_cached_file(self, target_metadata):
         """ remove record of cached file, return size """
-        with open(self.asset_list) as assets:
-            asset_list = assets.readlines()
-    
         count = 0
+        asset_list = self.list_assets()
         with open(self.asset_list, 'wt') as assets:
-            for asset in asset_list:
-                target_path, atype = [a.strip() for a in asset.split('\t')]
+            for target_path, atype in asset_list:
                 if target_path != target_metadata.target_path:
-                    assets.write(asset)
+                    assets.write(target_path + "\t" + atype + "\n")
                 else:
                     count += 1
         os.chmod(self.asset_list, self.umask)
 
         if count == 0:
-            logging.error("No match for " + target_path)
+            LOGGER.error("No match for " + target_metadata.target_path)
             raise Exception("Error recording assets")
 
         if count > 1:
-            logging.warning("Found {} listings for {}".format(count,
-                                                              target_path))
+            LOGGER.warning("Found {} listings for {}".format(count,
+                                                 target_metadata.target_path))
 
         return target_metadata.remove_target()
 
     def add_cached_file(self, target_metadata, target_size, lock_end_date):
         """ add record of asset """
         # add to global md
-        with open(self.asset_list, 'at') as assets:
-            assets.write(target_metadata.target_path + "\t" \
-                          + target_metadata.atype + "\n")
-        os.chmod(self.asset_list, self.umask)
+        paths_in_cache = set(a[0] for a in self.list_assets())
+        if target_metadata.target_path not in paths_in_cache:
+            LOGGER.debug("%s not in %s, adding...",
+                         target_metadata.target_path,
+                         paths_in_cache)
+            # add to list if not there yet
+            with open(self.asset_list, 'at') as assets:
+                assets.write(target_metadata.target_path + "\t" \
+                              + target_metadata.atype + "\n")
+            os.chmod(self.asset_list, self.umask)
+        else:
+            LOGGER.debug("%s alread in asset list",
+                         taget_metadata.target_path)
 
         # add file specific md
         target_metadata.set_cached_target_size(target_size)

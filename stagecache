@@ -47,11 +47,12 @@ Options:
 
 import logging
 import json
+import time
 import yaml
 from docopt import docopt
 from jme.stagecache.main import cache_target, query_cache
 from jme.stagecache import VERSION
-from jme.stagecache.util import human_readable_bytes
+from jme.stagecache.util import human_readable_bytes, get_time_string
 
 def main(arguments):
     """ The starting point for command line operation
@@ -113,12 +114,16 @@ def main(arguments):
 
             # print file details if verbose or debugging
             if log_level <= logging.INFO:
-                for file_data in cache_data['files']:
-                    print("{} ({}) uses {} for {:0.0f}s".format(
-                        file_data['target'],
+                for target, file_data in cache_data['files'].items():
+                    if file_data['lock'] > time.time():
+                        status = "until " + get_time_string(file_data['lock'])
+                    else:
+                        status = "(Expired)"
+                    print("{} ({}) uses {} {}".format(
+                        target,
                         file_data['type'],
                         human_readable_bytes(file_data['size']),
-                        file_data['lock'],
+                        status
                     ))
 
 if __name__ == '__main__':
