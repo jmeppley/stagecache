@@ -6,7 +6,7 @@ import subprocess
 import stat
 from contextlib import contextmanager
 from jme.stagecache.util import parse_url
-from jme.stagecache.ssh import passwordless_ssh
+from jme.stagecache.ssh import passwordless_sftp
 
 LOGGER = logging.getLogger(name='target')
 
@@ -171,5 +171,3 @@ class SFTP_Target(Target):
         """ prefix for rsync remote path """
         return self.username + "@" + self.host + ":"
 
-
-import glob
