@@ -1,6 +1,7 @@
 import logging
 import os
 import paramiko
+from contextlib import contextmanager
 
 LOGGER = logging.getLogger(name='ssh')
 
@@ -13,7 +14,10 @@ def generate_ssh_keys():
     
     # start with the agent keys
     agent = paramiko.Agent()
-    for agent_key in  agent.get_keys():
+    agent_keys = agent.get_keys()
+    LOGGER.debug("Trying %d ssh-agent keys", len(agent_keys))
+    for agent_key in agent_keys:
+        LOGGER.debug("Trying ssh-agent key: %s", agent_key.get_name())
         yield agent_key
 
     # next, looop over files and try to load them with no passcode
@@ -29,7 +33,7 @@ def generate_ssh_keys():
         ## TODO: check for first line with:
         # ---BEGIN XXX PRIVATE KEY---
 
-        LOGGER.debug("Trying key: %s", keyfile)
+        LOGGER.debug("Trying key file: %s", keyfile)
 
         # figure out what type of key by brute force
         for keygen in KEY_TYPES:
@@ -42,7 +46,8 @@ def generate_ssh_keys():
                 continue
 
 
-def passwordless_sftp(host, user):
+@contextmanager
+def passwordless_sftp(host, username):
     """ attempt to connect to host as user
         try all the keys in order returned by generate_ssh_keys
         
@@ -51,15 +56,18 @@ def passwordless_sftp(host, user):
 
     for ssh_key in generate_ssh_keys():
         try:
-            transport = paramiko.Transport(self.host)
-            transport.connect(username=self.username, pkey=ssh_key)
+            transport = paramiko.Transport(host)
+            transport.connect(username=username, pkey=ssh_key)
         except paramiko.SSHException as e:
             # try another key
             continue
         else:
             LOGGER.debug("Connected!")
             sftp = paramiko.SFTPClient.from_transport(transport)
-            return sftp
+            yield sftp
+            sftp.close()
+            transport.close()
+            break
     else:
         # nothing worked
         raise Exception("Could not connect! Rerun with -d to get more info")

@@ -161,10 +161,8 @@ class SFTP_Target(Target):
     def filesystem(self):
         LOGGER.info("Connecting to %s as %s", self.host, self.username)
 
-        sftp = passwordless_sftp(self.host, self.user)
-        yield sftp
-        sftp.close()
-        transport.close()
+        with passwordless_sftp(self.host, self.username) as sftp:
+            yield sftp
 
                     
     def get_remote_pref(self):
