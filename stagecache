@@ -88,7 +88,7 @@ def main(arguments):
         log_level = logging.WARNING
         ll_text = 'quiet'
     logging.basicConfig(level=log_level)
-    logging.info("Log level set to %s (%s)", log_level, ll_text)
+    logging.debug("Log level set to %s (%s)", log_level, ll_text)
 
     logging.debug(arguments)
 

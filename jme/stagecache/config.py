@@ -215,7 +215,7 @@ def load_configs():
 def load_config_file(config_file):
     """ attempt to load as YAML, then as JSON """
 
-    LOGGER.info("Loading config from " + config_file)
+    LOGGER.debug("Loading config from " + config_file)
     if not os.path.exists(config_file):
         LOGGER.debug("skipping missing config file")
         return {}
