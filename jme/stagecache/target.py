@@ -6,6 +6,7 @@ import subprocess
 import stat
 from contextlib import contextmanager
 from jme.stagecache.util import parse_url
+from jme.stagecache.ssh import passwordless_ssh
 
 LOGGER = logging.getLogger(name='target')
 
@@ -159,51 +160,11 @@ class SFTP_Target(Target):
     @contextmanager
     def filesystem(self):
         LOGGER.info("Connecting to %s as %s", self.host, self.username)
-        #import pysftp
-        #kwargs = {'username': self.username,
-        #          'host': self.host}
-        #sftp_connection = pysftp.Connection(**kwargs)
-        #yield sftp_connection
-        #sftp_connection.close()
 
-        import paramiko
-        ssh_dir = os.path.join(os.path.expanduser("~"), '.ssh')
-        for keyfile in os.listdir(ssh_dir):
-            if not keyfile.startswith("id_"):
-                continue
-            if keyfile.endswith(".pub"):
-                continue
-            keypath = os.path.join(ssh_dir, keyfile)
-            ## TODO: check for first line with:
-            # ---BEGIN XXX PRIVATE KEY---
-
-            LOGGER.debug("Trying key: %s", keyfile)
-
-            # figure out what type of key by brute force
-            for keygen in [paramiko.DSSKey, paramiko.ECDSAKey, 
-                          paramiko.Ed25519Key, paramiko.RSAKey]:
-                try:
-                    LOGGER.debug("Trying: " + repr(keygen))
-                    pk = keygen.from_private_key_file(keypath)
-                    transport = paramiko.Transport(self.host)
-                    transport.connect(username=self.username, pkey=pk)
-                except paramiko.SSHException as e:
-                    continue
-                else:
-                    LOGGER.debug("Connected!")
-                    sftp = paramiko.SFTPClient.from_transport(transport)
-                    yield sftp
-                    sftp.close()
-                    transport.close()
-                    break
-            else:
-                # found nothing, go to next key
-                continue
-            # found something, exit
-            break
-        else:
-            # found nothing
-            raise Exception("Could not connect! Rerun with -d to get more info")
+        sftp = passwordless_sftp(self.host, self.user)
+        yield sftp
+        sftp.close()
+        transport.close()
 
                     
     def get_remote_pref(self):

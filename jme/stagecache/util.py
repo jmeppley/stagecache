@@ -119,3 +119,4 @@ def user_from_config(config, host):
                          .get('username', local_user)
     user = config.get('remote', {}).get('SFTP', {}).get(host, {}).get('username', default_user)
     return user
+
