@@ -15,17 +15,24 @@ Caches to ~/.cache by default, but a new location can be configured:
     * in global config file: ${SCRIPT_PATH}/../etc/stagecache.yaml
 
 Limited support for groups of files:
-    * formated lastdb files
-    * TDB...
+    * formated lastdb database
+    * formatted bwa index
+    * generic prefix
+    * taxdump (names.dmp, nodes.dmp in given folder)
+    * define your own in a config file (see config.py and types.py)
 
 default cache root and cache lifetimes are configurable (see config.py).
 Fallback values are: ~/.cache and one day (1-0:00).
+
+Lifetime can be negative. This will free the file up to be purge immediately,
+but not delete it. Add the purge option to delete the file from the cache.
 
 Use bash magic to embed in a command. EG:
     lastal $(stagecache -t last /path/to/db) /path/to/query.fasta
 
 Run with no TARGET_PATH to get the number of files and free space in cache. Add
---verbose or --debug (or -v or -d) to get list of files in cache.
+--verbose or --debug (or -v or -d) to get list of files in cache. Use purge
+with no TARGET_PATH to delete all expired files.
 
 Usage:
     stagecache [options] TARGET_PATH
@@ -40,6 +47,7 @@ Options:
     -d --debug               Print even more messages.
     --dry_run                Just report what will be copied and/or deleted
     --force                  Delete any write_locks, and re-run rsync
+    --purge                  Delete expired file(s)
     -a ATYPE, --atype ATYPE  Asset type [default: file]
     -c CACHE, --cache CACHE  Cache root
     -t TIME, --time TIME     Keep in cache for at least this time
@@ -76,7 +84,7 @@ def main(arguments):
     # collect arguments that affect function
     target_path = arguments['TARGET_PATH']
     kwargs = {k:arguments["--"+k] \
-              for k in ['time', 'cache', 'atype', 'force', 'dry_run']}
+              for k in ['time', 'cache', 'atype', 'force', 'dry_run', 'purge']}
 
     # logging
     if arguments['--debug']:
@@ -115,10 +123,14 @@ def main(arguments):
             # print file details if verbose or debugging
             if log_level <= logging.INFO:
                 for target, file_data in cache_data['files'].items():
-                    if file_data['lock'] > time.time():
-                        status = "until " + get_time_string(file_data['lock'])
+                    file_date = file_data['lock']
+                    if isinstance(file_date, int):
+                        if file_date > time.time():
+                            status = "until " + get_time_string(file_date)
+                        else:
+                            status = "EXPIRED on " + get_time_string(file_date)
                     else:
-                        status = "(Expired)"
+                        status = file_date
                     print("{} ({}) uses {} {}".format(
                         target,
                         file_data['type'],

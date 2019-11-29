@@ -23,8 +23,10 @@ def cache_target(target_url, cache=None, atype=None, time=None, **kwargs):
     # initialize the Target
     if atype is None:
         atype = 'file'
-    target = get_target(target_url, asset_types[atype], cache.config)
-    ## TODO: resonable error if atype not in asset list
+    asset_type = asset_types.get(atype, None)
+    if asset_type is None:
+        raise Exception("No asset type defined for '{}!'".format(atype))
+    target = get_target(target_url, asset_type, cache.config)
 
     return cache.add_target(target, cache_time=time, **kwargs)
 
