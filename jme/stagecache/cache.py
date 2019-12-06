@@ -59,7 +59,7 @@ class Cache():
             except FileNotFoundError:
                 cache_mtime = 0
 
-            if force or cache_mtime < target_mtime:
+            if force or cache_mtime is None or cache_mtime < target_mtime:
                 # cache is out of date
                 with self.metadata.lock(force=force, dry_run=dry_run):
                     # get updated target size
@@ -179,12 +179,16 @@ class Cache():
         cached_files = []
         for target_metadata in self.metadata.iter_cached_files():
             target_size = target_metadata.get_cached_target_size()[0]
+            if target_size is None:
+                target_size = 0
             used_space += target_size
+            lock_date = target_metadata.get_last_lock_date()
+            lock_lifetime = None if lock_date is None else lock_date - time.time()
             cached_files.append({
                 'target': target_metadata.target_path,
                 'size': target_size,
                 'type': target_metadata.atype,
-                'lock': target_metadata.get_last_lock_date() - time.time()
+                'lock': lock_lifetime,
             })
 
         LOGGER.debug("%d bytes in cached used by %d files", used_space,

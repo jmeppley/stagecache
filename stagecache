@@ -114,11 +114,14 @@ def main(arguments):
             # print file details if verbose or debugging
             if log_level <= logging.INFO:
                 for file_data in cache_data['files']:
-                    print("{} ({}) uses {} for {:0.0f}s".format(
+                    state = "(missing)" if file_data['lock'] is None \
+                            else "uses {} for {:0.0f}s".format(
+                                human_readable_bytes(file_data['size']),
+                                file_data['lock'])
+                    print("{} ({}) {}".format(
                         file_data['target'],
                         file_data['type'],
-                        human_readable_bytes(file_data['size']),
-                        file_data['lock'],
+                        state,
                     ))
 
 if __name__ == '__main__':

@@ -88,17 +88,37 @@ def parse_url(url, config, use_local=False, has_wildcards=False):
     for custom_patterns in config \
                            .get('remote', {}) \
                            .get('mappings', []):
-        mnt_rexp = re.compile(custom_patterns['pattern'])
-        host_repl = custom_patterns['host_repl']
-        path_repl = custom_patterns['path_repl']
+        try:
+            mnt_rexp = re.compile(custom_patterns['pattern'])
+            host_repl = custom_patterns['host_repl']
+            path_repl = custom_patterns['path_repl']
+        except KeyError:
+            LOGGER.error("custom patterns must contain: pattern, host_repl, "
+                         "and path_repl")
+            raise
+        except:
+            LOGGER.error("re cannot compile custom pattern: " +
+                         custom_patterns['pattern'])
+            raise
 
         LOGGER.debug("Checking remote pattern: %r", custom_patterns['pattern'])
 
         if not mnt_rexp.search(url):
+            # skip to next pattern if this doesn't match
             continue
 
-        source_path = mnt_rexp.sub(path_repl, url)
-        host = mnt_rexp.sub(host_repl, url)
+        try:
+            source_path = mnt_rexp.sub(path_repl, url)
+        except:
+            LOGGER.error("re cannot understand replacement expression " +
+                         path_repl)
+            raise
+        try:
+            host = mnt_rexp.sub(host_repl, url)
+        except:
+            LOGGER.error("re cannot understand replacement expression " +
+                         host_repl)
+            raise
         user = user_from_config(config, host)
 
         LOGGER.debug("INFERRED URL SFTP://%s@%s%s", user, host, source_path)

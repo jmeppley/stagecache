@@ -132,6 +132,9 @@ class TargetMetadata(Lockable):
     def get_md_value(self, md_type, delete=False):
         """  returns mtime of md file and int value from file """
         md_file = os.path.join(self.md_dir, md_type)
+        if not os.path.exists(md_file):
+            # file not in cache!
+            return (None, None)
         mtime = os.path.getmtime(md_file)
         with open(md_file, 'rt') as md_handle:
             value = int(md_handle.readlines()[0].strip())

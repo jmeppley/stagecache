@@ -105,6 +105,7 @@ def get_config(cache=None):
             cache = os.path.abspath(os.path.expanduser("~/.cache"))
     
     # look in already loaded cache configs to see if its a named cache
+    LOGGER.debug("Looking for config for " + str(cache))
     cache_root = os.path.abspath(os.path.expanduser(cache))
     if cache in CONFIGS['cache_names']:
         cache_name = cache
@@ -125,11 +126,16 @@ def get_config(cache=None):
             cache_config['caches'][cache_name][k] = cache_config[root_k]
             del cache_config[root_k]
 
-    # merge configs
-    config = deepcopy(DEFAULT_CONFIG)
-    apply_defaults(config, CONFIGS['global'])
-    apply_defaults(config, cache_config)
-    apply_defaults(config, CONFIGS['user'])
+    # merge configs in order
+    config = None
+    for default in [CONFIGS['user'],
+                    cache_config,
+                    CONFIGS['global'],
+                    DEFAULT_CONFIG]:
+        if config is None:
+            config = deepcopy(default)
+        else:
+            apply_defaults(config, default)
 
     # copy cache specific settings to top level
     for k in ['root', 'size', 'time', 'umask']:
@@ -163,6 +169,7 @@ def apply_defaults(config, defaults):
         if isinstance(pdefaults, dict):
             apply_defaults(config.setdefault(param, {}), pdefaults)
         else:
+            # only sets value if not already present
             config.setdefault(param, deepcopy(pdefaults))
 
 
