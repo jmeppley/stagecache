@@ -5,6 +5,7 @@ def human_readable_bytes(byt):
 def path_up_to_wildcard(full_path):
 def parse_url(url, config, use_local=False, has_wildcards=False):
 def user_from_config(config, host):
+def get_time_string(seconds):
 """
 
 
@@ -18,6 +19,7 @@ import os
 import re
 from math import log
 from collections import namedtuple
+from datetime import datetime, timezone
 power = pow
 LOGGER = logging.getLogger(name='util')
 
@@ -139,3 +141,12 @@ def user_from_config(config, host):
                          .get('username', local_user)
     user = config.get('remote', {}).get('SFTP', {}).get(host, {}).get('username', default_user)
     return user
+
+
+def get_time_string(seconds):
+    """ return a formatted time string """
+    return datetime.fromtimestamp(seconds,
+                                  timezone.utc) \
+                    .astimezone() \
+                    .strftime("%Y-%m-%d %H:%M:%S (%Z)")
+

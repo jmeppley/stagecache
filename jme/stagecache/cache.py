@@ -7,6 +7,7 @@ from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
 from jme.stagecache.target import collect_target_files
 from jme.stagecache.config import get_config
 from jme.stagecache.types import asset_types
+from jme.stagecache.util import get_time_string
 
 LOGGER = logging.getLogger(name='cache')
 
@@ -20,7 +21,11 @@ class Cache():
         self.cache_root = self.config['cache_root']
         self.metadata = CacheMetadata(self)
 
-    def add_target(self, target, cache_time=None, force=False, dry_run=False):
+    def add_target(self, target,
+                   cache_time=None,
+                   force=False,
+                   purge=False,
+                   dry_run=False):
         """
         This is where the magic happens:
 
@@ -30,6 +35,11 @@ class Cache():
             * copy if needed
 
         params: a Target() object defining the asset to copy
+        optional kwargs:
+            cache_time: lifetime of file in cache
+            force: ignore and delete any old locks, re-copy remote files
+            purge: delete file if cache_time is negative and force is set
+            dry_run: don't do anything (except delete locks)
         returns: the path of the cached asset
         """
 
@@ -45,13 +55,25 @@ class Cache():
                                          target.asset_type['name'],
                                         )
 
-        # acquire lock 
+        if cache_time < 0:
+            if force:
+                if purge:
+                    self.remove_cached_file(target_metadata, dry_run)
+                    return target_metadata.cached_target
+            else:
+                LOGGER.error("Use --force to remove file from cache")
+                raise Exception("Cannot set negative expiration without "
+                                "--force")
+        elif purge:
+            LOGGER.error("Use --force and --time -1 with --purge to remove a "
+                         "file")
+            raise Exception("Cannot purge without setting time to negative "
+                            "values")
+
+        # acquire lock
         with target_metadata.lock(force=force, dry_run=dry_run):
 
-            ## compare dates (mtimes)
-            # target mtime
-            target_mtime = target.get_mtime()
-
+            ## compare dates (mtimes) of original and cached verions
             try:
                 # cached mtime
                 cache_size, cache_mtime = \
@@ -59,8 +81,12 @@ class Cache():
             except FileNotFoundError:
                 cache_mtime = 0
 
+            # target original mtime
+            target_mtime = target.get_mtime()
+
             if force or cache_mtime is None or cache_mtime < target_mtime:
                 # cache is out of date
+
                 with self.metadata.lock(force=force, dry_run=dry_run):
                     # get updated target size
                     target_size = target.get_size()
@@ -85,14 +111,20 @@ class Cache():
 
 
             else:
-                # file already in cache
-                LOGGER.info("File is already in cache, updating lock")
+                # file already in cache, update lock
+                # extend lock if new lock is longer
+                lock_end_date = int(time.time()) + cache_time
 
-                if not dry_run:
-                    # extend lock if new lock is longer
-                    lock_end_date = int(time.time()) + cache_time
-                    if target_metadata.get_last_lock_date() < lock_end_date:
+                if force or target_metadata.get_last_lock_date() < lock_end_date:
+                    LOGGER.info("File is already in cache, "
+                                "updating expiration to %s.",
+                                get_time_string(lock_end_date))
+                    if not dry_run:
                         target_metadata.set_cache_lock_date(lock_end_date)
+                else:
+                    LOGGER.warning("File is already in cache with a later "
+                                "expiration date, "
+                                "use --force to change")
 
         return target_metadata.cached_target
 
@@ -124,7 +156,7 @@ class Cache():
             if total_unlocked_size + free_space < size:
                 raise InsufficientSpaceError("Cannot cache file. "
                                              "There is not enough space.")
-            
+
             # start deleting stale files ...
             space_freed = 0
             files_removed = 0
@@ -164,11 +196,14 @@ class Cache():
         # remove record
         return self.metadata.remove_cached_file(target_metadata)
 
-    def inspect_cache(self, force=False, dry_run=False, **kwargs):
+    def inspect_cache(self, force=False, dry_run=False, purge=False, **kwargs):
         """ return cache usage, cache availability
-        and list of cached items """
+        and list of cached items
 
-        # when inspecting cache, force is a request to delete the 
+        if purge: remove expired files
+        """
+
+        # when inspecting cache, force is a request to delete the
         # cache write lock
         # dry_run is ignored
         if force:
@@ -176,20 +211,29 @@ class Cache():
             self.metadata.get_write_lock(force=True, dry_run=True)
 
         used_space = 0
-        cached_files = []
+        cached_files = {}
         for target_metadata in self.metadata.iter_cached_files():
             target_size = target_metadata.get_cached_target_size()[0]
             if target_size is None:
                 target_size = 0
             used_space += target_size
+            target = target_metadata.target_path
+            if target in cached_files:
+                continue
             lock_date = target_metadata.get_last_lock_date()
-            lock_lifetime = None if lock_date is None else lock_date - time.time()
-            cached_files.append({
-                'target': target_metadata.target_path,
+            now = time.time()
+            if purge and lock_date < now:
+                self.remove_cached_file(target_metadata, dry_run)
+                if dry_run:
+                    lock_date = '<to-be-purged>'
+                else:
+                    lock_date = '<purged>'
+
+            cached_files[target] = {
                 'size': target_size,
                 'type': target_metadata.atype,
-                'lock': lock_lifetime,
-            })
+                'lock': lock_date,
+            }
 
         LOGGER.debug("%d bytes in cached used by %d files", used_space,
                       len(cached_files))
