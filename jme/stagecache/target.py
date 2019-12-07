@@ -14,7 +14,7 @@ class EmptyTargetException(Exception):
 
 def get_target(target_url, asset_type, config={}):
     """return appropriate target object """
-    LOGGER.info("Inspecting target: " + target_url)
+    LOGGER.info("Inspecting target: {}({})".format(target_url, asset_type))
 
     remote = parse_url(target_url, config)
 
@@ -40,6 +40,7 @@ def collect_target_files(fs, target_path, asset_type):
     if 'suff_list' in asset_type['contents']:
         for suffix in asset_type['contents']['suff_list']:
             file_path = target_path + suffix
+            LOGGER.debug("Getting mtime for " + file_path)
             stats = fs.stat(file_path)
             files[file_path] = {'mtime': stats.st_mtime,
                                 'size': stats.st_size}
@@ -50,6 +51,9 @@ def collect_target_files(fs, target_path, asset_type):
         patt = asset_type['contents']['suff_patt']
         remote_dir, prefix = os.path.split(target_path)
         clip = len(prefix)
+        LOGGER.debug("Getting mtime from files in {} matching {}".format(
+            remote_dir,
+            patt))
         for remote_file in fs.listdir(remote_dir):
             if remote_file.startswith(prefix):
                 if re.search(patt, remote_file[clip:]):
@@ -79,6 +83,8 @@ class Target():
     def get_target_files(self):
         # open connection to remote or use os module for local
         with self.filesystem() as fs:
+            LOGGER.debug("looking for target files: {} ({})".format(
+                self.remote_path, self.asset_type))
 
             files = collect_target_files(fs,
                                          self.remote_path,

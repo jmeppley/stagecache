@@ -132,7 +132,7 @@ def parse_url(url, config, use_local=False, has_wildcards=False):
 def user_from_config(config, host):
     """ get username from config for this host. Fall back to local username """
     local_user = getpass.getuser()
-    LOGGER.debug("config: %r", config)
+    LOGGER.debug("config['remote']: %r", config['remote'])
     default_user = config.get('remote', {})\
                          .get('SFTP', {}) \
                          .get('default', {}) \
