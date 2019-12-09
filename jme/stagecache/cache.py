@@ -96,12 +96,6 @@ class Cache():
                     self.free_up_cache_space(target_size, dry_run=dry_run)
 
 
-                    # do the copy
-                    target.copy_to(target_metadata.cached_target,
-                                   self.config['cache_umask'],
-                                   dry_run=dry_run,
-                                  )
-
                     if not dry_run:
                         # update metadata
                         lock_end_date = int(time.time()) + cache_time
@@ -109,6 +103,15 @@ class Cache():
                                                       target_size,
                                                       lock_end_date)
 
+                # do the copy after releasing cache lock and updating MD
+                try:
+                    target.copy_to(target_metadata.cached_target,
+                                   self.config['cache_umask'],
+                                   dry_run=dry_run,
+                                  )
+                except:
+                    # TODO: if it fails for any reason, remove entry
+                    raise
 
             else:
                 # file already in cache, update lock
