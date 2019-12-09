@@ -274,7 +274,7 @@ class CacheMetadata(Lockable):
             os.chmod(self.asset_list, self.umask)
         else:
             LOGGER.debug("%s alread in asset list",
-                         taget_metadata.target_path)
+                         target_metadata.target_path)
 
         # add file specific md
         target_metadata.set_cached_target_size(target_size)
