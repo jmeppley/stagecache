@@ -42,7 +42,11 @@ def collect_target_files(fs, target_path, asset_type):
         for suffix in asset_type['contents']['suff_list']:
             file_path = target_path + suffix
             LOGGER.debug("Getting mtime for " + file_path)
-            stats = fs.stat(file_path)
+            try:
+                stats = fs.stat(file_path)
+            except:
+                LOGGER.error("ERROR: getting status of: " + file_path)
+                raise
             files[file_path] = {'mtime': stats.st_mtime,
                                 'size': stats.st_size}
 
@@ -153,7 +157,13 @@ class Target():
                 subprocess.run(rsync_cmd, shell=True, check=True)
 
                 # set umask
-                os.chmod(cached_file, umask)
+                try:
+                    os.chmod(cached_file, umask)
+                except:
+                    # TODO: so far this happens when other user has already created
+                    # the file. We should explicitly check for this and
+                    # move on if the umask is OK.
+                    LOGGER.warn("Unable to set umask.")
 
 class SFTP_Target(Target):
     """ Represents an asset somewhere on a remote filesystem """
