@@ -62,7 +62,7 @@ def passwordless_sftp(host, username):
             # try another key
             continue
         else:
-            LOGGER.debug("Connected!")
+            LOGGER.debug("Connected to {}!".format(host))
             sftp = paramiko.SFTPClient.from_transport(transport)
             yield sftp
             sftp.close()
