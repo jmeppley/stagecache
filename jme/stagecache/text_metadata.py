@@ -135,13 +135,13 @@ class TargetMetadata(Lockable):
         md_file = os.path.join(self.md_dir, md_type)
         if not os.path.exists(md_file):
             # file not in cache!
-            return (None, None)
+            return (0, None)
         mtime = os.path.getmtime(md_file)
         with open(md_file, 'rt') as md_handle:
             value = int(md_handle.readlines()[0].strip())
         if delete:
             os.remove(md_file)
-        return (value, mtime)
+        return value, mtime
 
     def set_md_value(self, md_type, value):
         """ writes value to md file """
@@ -177,7 +177,8 @@ class TargetMetadata(Lockable):
 
     def get_last_lock_date(self):
         """ returns the most recent lock end date """
-        return self.get_md_value('cache_lock')[0]
+        lock_date = self.get_md_value('cache_lock')[0]
+        return lock_date
 
     def set_cache_lock_date(self, date):
         """ writes new expiration date to file """
@@ -185,7 +186,8 @@ class TargetMetadata(Lockable):
 
     def is_lock_valid(self):
         """ checks if lock date has passed """
-        return self.get_last_lock_date() > time.time()
+        lock_date = self.get_last_lock_date()
+        return lock_date > time.time()
 
     def remove_target(self):
         """ archive metadata for this asset """
@@ -225,14 +227,22 @@ class CacheMetadata(Lockable):
         """ return list of path, type tuples in cache """
         LOGGER.debug("Fetching asset list: %s", self.asset_list)
         if os.path.exists(self.asset_list):
+            asset_list = list()
             with open(self.asset_list) as assets:
-                assets = [tuple(a.strip() for a in asset.split('\t'))
-                          for asset in assets.readlines()]
-                LOGGER.debug("Found %d assets in %s",
-                             len(assets),
-                             self.asset_list,
-                            )
-                return assets
+                for asset_line in assets:
+                    asset_line = asset_line.strip()
+                    if len(asset_line) == 0:
+                        continue
+                    asset = tuple(a.strip() for a in asset_line.split('\t'))
+                    if len(asset) != 2:
+                        raise Exception("Asset tuple is NOT length 2!\n%r" % (asset,))
+                    asset_list.append(asset)
+
+            LOGGER.debug("Found %d assets in %s",
+                         len(asset_list),
+                         self.asset_list,
+                        )
+            return asset_list
         else:
             return []
 
@@ -240,7 +250,9 @@ class CacheMetadata(Lockable):
     def remove_cached_file(self, target_metadata):
         """ remove record of cached file, return size """
         count = 0
+        # read asset list
         asset_list = self.list_assets()
+        # write new (edited) asset list
         with open(self.asset_list, 'wt') as assets:
             for target_path, atype in asset_list:
                 if target_path != target_metadata.target_path:
