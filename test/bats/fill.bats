@@ -32,11 +32,26 @@
 
     # wait for lock on first file to expire
     sleep 3
+
     # try again
-    run ./stagecache -c test/.cache.tmp $F3
+    run ./stagecache -t 0:00:02 -c test/.cache.tmp $F3
     [ "$status" -eq 0 ]
     [ -e test/.cache.tmp$(realpath $(pwd))/$BD/.stagecache.$(basename $F3)/size ]
     [ -e test/.cache.tmp$(realpath $(pwd))/$F3 ]
     [ ! -e test/.cache.tmp$(realpath $(pwd))/$F1 ]
+
+    # try to re-add the first file
+    run ./stagecache -t 0:00:03 -c test/.cache.tmp $F1
+    [ "$status" -gt 0 ]
+
+    # wait for lock on  last file to expire
+    sleep 2
+
+    # try to re-add the first file
+    run ./stagecache -t 0:00:03 -c test/.cache.tmp $F1
+    [ "$status" -eq 0 ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/$BD/.stagecache.$(basename $F1)/size ]
+    [ -e test/.cache.tmp$(realpath $(pwd))/$F1 ]
+    [ ! -e test/.cache.tmp$(realpath $(pwd))/$F3 ]
 
 }
