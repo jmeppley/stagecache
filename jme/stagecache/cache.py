@@ -76,7 +76,7 @@ class Cache():
             ## compare dates (mtimes) of original and cached verions
             try:
                 # cached mtime
-                cache_size, cache_mtime = \
+                cached_target_size, cache_mtime = \
                     target_metadata.get_cached_target_size()
             except FileNotFoundError:
                 cache_mtime = 0
@@ -123,7 +123,15 @@ class Cache():
                                 "updating expiration to %s.",
                                 get_time_string(lock_end_date))
                     if not dry_run:
-                        target_metadata.set_cache_lock_date(lock_end_date)
+                        #target_metadata.set_cache_lock_date(lock_end_date)
+                        # there is an outstanding bug where files get dropped
+                        # from the asset list, so we'll try to add again here
+                        added = self.metadata.add_cached_file(target_metadata,
+                                                      cached_target_size,
+                                                      lock_end_date)
+                        if added:
+                            LOGGER.warning("File was missing from asset list, "
+                                           "but it has been re-added")
                 else:
                     LOGGER.warning("File is already in cache with a later "
                                 "expiration date, "
@@ -150,7 +158,7 @@ class Cache():
             unlocked_assets = self.metadata.iter_cached_files(locked=False)
             unlocked_assets = sorted(unlocked_assets,
                                      key=lambda a: a.get_last_lock_date(),
-                                     reverse=True)
+                                     reverse=False)
 
             # can we free up enough space?
             total_unlocked_size = sum(a.get_cached_target_size()[0] \
@@ -286,5 +294,4 @@ def parse_slurm_time(time):
         total_seconds = int(time)
 
     return total_seconds
-
 

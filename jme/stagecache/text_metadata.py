@@ -284,10 +284,14 @@ class CacheMetadata(Lockable):
                 assets.write(target_metadata.target_path + "\t" \
                               + target_metadata.atype + "\n")
             os.chmod(self.asset_list, self.umask)
+            added_to_list = True
         else:
             LOGGER.debug("%s alread in asset list",
                          target_metadata.target_path)
+            added_to_list = False
 
         # add file specific md
         target_metadata.set_cached_target_size(target_size)
         target_metadata.set_cache_lock_date(lock_end_date)
+
+        return added_to_list
