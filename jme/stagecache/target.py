@@ -27,7 +27,7 @@ def get_target(target_url, asset_type, config={}):
             LOGGER.info("Target on remote host: " + remote.host)
             return SFTP_Target(remote, asset_type)
         else:
-            raise Excpetion("Unsupported protocol: " + remote.protocol)
+            raise Exception("Unsupported protocol: " + remote.protocol)
 
 def collect_target_files(fs, target_path, asset_type):
     """
@@ -36,6 +36,7 @@ def collect_target_files(fs, target_path, asset_type):
 
     # collect as dict to remove duplicates
     files = {}
+    errors = {}
 
     # collect files with explicit suffixes
     if 'suff_list' in asset_type['contents']:
@@ -44,33 +45,48 @@ def collect_target_files(fs, target_path, asset_type):
             LOGGER.debug("Getting mtime for " + file_path)
             try:
                 stats = fs.stat(file_path)
-            except:
+            except Exception as inst:
                 LOGGER.error("ERROR: getting status of: " + file_path)
-                raise
+                errors[file_path] = inst
+                continue
             files[file_path] = {'mtime': stats.st_mtime,
                                 'size': stats.st_size}
 
-
     # scan filesystem for files matching suffix regex
-    if 'suff_patt' in asset_type['contents']:
-        patt = asset_type['contents']['suff_patt']
-        remote_dir, prefix = os.path.split(target_path)
-        clip = len(prefix)
-        LOGGER.debug("Getting mtime from files in {} matching {}".format(
-            remote_dir,
-            patt))
-        for remote_file in fs.listdir(remote_dir):
-            if remote_file.startswith(prefix):
-                if re.search(patt, remote_file[clip:]):
-                    file_path = os.path.join(remote_dir, remote_file)
-                    fileattr = fs.stat(file_path)
-                    if not stat.S_ISDIR(fileattr.st_mode):
-                        stats = fs.stat(file_path)
-                        files[file_path] = {'mtime': stats.st_mtime,
-                                             'size': stats.st_size}
+    try:
+        if 'suff_patt' in asset_type['contents']:
+            patt = asset_type['contents']['suff_patt']
+            remote_dir, prefix = os.path.split(target_path)
+            clip = len(prefix)
+            LOGGER.debug("Getting mtime from files in {} matching {}".format(
+                remote_dir,
+                patt))
+            for remote_file in fs.listdir(remote_dir):
+                if remote_file.startswith(prefix):
+                    if re.search(patt, remote_file[clip:]):
+                        file_path = os.path.join(remote_dir, remote_file)
+                        fileattr = fs.stat(file_path)
+                        if not stat.S_ISDIR(fileattr.st_mode):
+                            stats = fs.stat(file_path)
+                            files[file_path] = {'mtime': stats.st_mtime,
+                                                 'size': stats.st_size}
+    except Exception as inst:
+        LOGGER.error("ERROR: finding matches to suffix: " +  patt + " in " +
+                     remote_dir)
+        errors["SUFF:" + patt] = inst
+
+    # if we have any errors, raise a new Exception
+    if errors:
+        raise CollectTargetFilesException(files, errors)
 
     # done
     return files
+
+class CollectTargetFilesException(Exception):
+    def __init__(self, files, errors):
+        self.files = files
+        self.errors = errors
+        self.message = "Could not find files: " + repr(list(errors))
 
 class Target():
     """ Represents an asset somewhere on the local filesystem """

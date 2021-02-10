@@ -4,7 +4,8 @@ import os
 import re
 import shutil
 from jme.stagecache.text_metadata import TargetMetadata, CacheMetadata
-from jme.stagecache.target import collect_target_files
+from jme.stagecache.target import collect_target_files, \
+                                  CollectTargetFilesException
 from jme.stagecache.config import get_config
 from jme.stagecache.types import asset_types
 from jme.stagecache.util import get_time_string
@@ -193,12 +194,17 @@ class Cache():
         LOGGER.info("removing %s", target_metadata.target_path)
 
         if dry_run:
-            return target_metadata.get_cached_target_size()
+            return target_metadata.get_cached_target_size()[0]
 
         # collect file names
-        target_files = collect_target_files(os,
-                                            target_metadata.cached_target,
-                                            asset_types[target_metadata.atype])
+        try:
+            target_files = collect_target_files(os,
+                                                target_metadata.cached_target,
+                                                asset_types[target_metadata.atype])
+        except CollectTargetFilesException as ctfe:
+            target_files = ctfe.files
+            LOGGER.warning("Files to be deleted are missing: " +
+                           repr(list(ctfe.errors)))
 
         # remove files
         for filename in target_files:

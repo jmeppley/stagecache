@@ -51,8 +51,12 @@ def get_cached_target(cache_root, target_path):
 def makedirs(path, mode=509):
     if not os.path.exists(path):
         makedirs(os.path.dirname(path), mode)
-        os.mkdir(path)
-        os.chmod(path, mode=mode)
+        try:
+            os.mkdir(path)
+            os.chmod(path, mode=mode)
+        except FileExistsError as f_e_e:
+            # competing threads?
+            pass
 
 class Lockable():
     def __init__(self, cache):
